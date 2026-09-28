@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "G0Xnc4jyCGrbzN7F_jwBv"
+uri = "file://client/public/birds-ambient.mp3"
+type = "audio"
+title = "birds-ambient"
+description = "Generated sound effect: Peaceful early morning forest birdsong ambience, multiple bird species chirping melodically, gentle wind through trees, distant woodpecker, serene nature sounds, warm and calm…"

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ВетДом — Ветеринар на дом"
+description = "Imported veterinary home-visit application with its original React client, Express server, assets and startup scripts."
+version = "1.0.0"
+id = "artifacts/veterinarathome"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23049
+
+[services.development]
+run = "pnpm --filter @workspace/veterinarathome run dev"
+
+[services.production]
+build = [ "bash", "-lc", "cd artifacts/veterinarathome && npm run install:all && npm run build --prefix client && npm run build --prefix server" ]
+
+[services.production.run]
+args = [ "bash", "artifacts/veterinarathome/start.sh" ]
+
+[services.production.run.env]
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/api/health"
+
+[services.env]
+PORT = "23049"
+BASE_PATH = "/"

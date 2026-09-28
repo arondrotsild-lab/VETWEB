@@ -1,0 +1,2 @@
+- [Nested Node deployment installs](nested-node-deployment-installs.md) — production builds must install each workspace's dev dependencies from its own lockfile.
+- [Order tracking demo](order-tracking-demo.md) — keep the approved automatic vet-search and status progression available for product demonstrations.

@@ -1,0 +1,2 @@
+- [Replit custom-domain revalidation](replit-domain-revalidation.md) — compare the live TXT token with the current Replit prompt when rebinding a hostname.
+- [GitHub provider vs. CLI auth](github-git-cli-auth.md) — an Active Replit GitHub provider may not provide working credentials to shell `git push`.
