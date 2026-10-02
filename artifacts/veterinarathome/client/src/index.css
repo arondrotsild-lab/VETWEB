@@ -98,3 +98,49 @@
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;
 }
+
+.hero-stage,
+.hero-content {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.hero-video {
+  object-fit: cover;
+  object-position: center center;
+  background: #060d06;
+}
+
+.hero-video-scrim {
+  background: linear-gradient(
+    180deg,
+    rgba(2, 8, 3, 0.38) 0%,
+    rgba(2, 8, 3, 0.42) 42%,
+    rgba(2, 8, 3, 0.72) 100%
+  );
+}
+
+@media (min-width: 768px) {
+  .hero-video-scrim {
+    background:
+      linear-gradient(90deg, rgba(2, 8, 3, 0.3), transparent 45%, rgba(2, 8, 3, 0.26)),
+      linear-gradient(180deg, rgba(2, 8, 3, 0.34), transparent 45%, rgba(2, 8, 3, 0.68));
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-content {
+    justify-content: flex-end;
+    padding-top: calc(9rem + env(safe-area-inset-top));
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+  }
+
+  .hero-video-scrim {
+    background: linear-gradient(
+      180deg,
+      rgba(2, 8, 3, 0.42) 0%,
+      rgba(2, 8, 3, 0.36) 36%,
+      rgba(2, 8, 3, 0.76) 100%
+    );
+  }
+}

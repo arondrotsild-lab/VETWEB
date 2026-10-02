@@ -25,9 +25,20 @@ export default function LandingPage() {
   const [suggSent, setSuggSent] = useState(false);
   const [suggLoading, setSuggLoading] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMobileVideo, setIsMobileVideo] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
 
   useEffect(() => { getServices().then(setServices).catch(() => {}); }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateVideoSource = () => setIsMobileVideo(mediaQuery.matches);
+    updateVideoSource();
+    mediaQuery.addEventListener('change', updateVideoSource);
+    return () => mediaQuery.removeEventListener('change', updateVideoSource);
+  }, []);
 
   const handleSuggestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +50,12 @@ export default function LandingPage() {
   };
 
   const toggleSound = () => {
-    if (!audioRef.current) return;
-    if (soundOn) { audioRef.current.pause(); } else { audioRef.current.volume = 0.35; audioRef.current.play().catch(() => {}); }
-    setSoundOn(!soundOn);
+    const video = videoRef.current;
+    if (!video) return;
+    const nextSoundOn = !soundOn;
+    video.muted = !nextSoundOn;
+    if (nextSoundOn) video.play().catch(() => {});
+    setSoundOn(nextSoundOn);
   };
 
   const steps = [
@@ -143,21 +157,30 @@ export default function LandingPage() {
     <div className="bg-[#060d06] text-white">
 
       {/* ═══ HERO ═══ */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
-        <audio ref={audioRef} src="/birds-ambient.mp3" loop preload="auto" />
-        <video autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 20%' }}>
-          <source src="/hero-video.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-black/60 pointer-events-none" />
+      <section className="hero-stage relative min-h-screen flex flex-col justify-center overflow-hidden">
+        <video
+          key={isMobileVideo ? 'mobile-hero' : 'desktop-hero'}
+          ref={videoRef}
+          src={isMobileVideo ? '/hero-video-mobile.mp4' : '/hero-video-desktop.mp4'}
+          poster={isMobileVideo ? '/hero-poster-mobile.jpg' : '/hero-poster-desktop.jpg'}
+          autoPlay
+          muted={!soundOn}
+          loop
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+          className="hero-video absolute inset-0 h-full w-full"
+        />
+        <div className="hero-video-scrim absolute inset-0 pointer-events-none" />
 
         {/* Sound pill */}
-        <button onClick={toggleSound}
+        <button onClick={toggleSound} aria-pressed={soundOn} aria-label={soundOn ? t('landing.soundOn') : t('landing.soundOff')}
           className="absolute top-24 right-6 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white/70 hover:text-white transition-all"
           style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)' }}>
           {soundOn ? `🔊 ${t('landing.soundOn')}` : `🔇 ${t('landing.soundOff')}`}
         </button>
 
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen text-center px-6 py-32">
+        <div className="hero-content relative z-10 flex flex-col items-center justify-center min-h-screen text-center px-6 py-32">
           <div className="inline-flex items-center gap-3 mb-8">
             <div className="w-8 h-px bg-amber-400" />
             <span className="text-amber-400 text-[11px] font-bold uppercase tracking-[0.3em]">{t('landing.hero1')}</span>
