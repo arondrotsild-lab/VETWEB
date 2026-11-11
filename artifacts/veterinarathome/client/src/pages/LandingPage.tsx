@@ -215,7 +215,7 @@ export default function LandingPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="font-semibold text-sm text-coffee-900 leading-tight truncate group-hover:text-green-700 transition-colors">{tName(svc.name)}</div>
-                      <div className="text-xs text-coffee-500 mt-0.5">{t('landing.services.from')}{svc.price_from.toLocaleString()} ₽</div>
+                      <div className="text-xs text-coffee-500 mt-0.5">{t('landing.services.from')}{svc.price_from.toLocaleString()} ₽</div>
                     </div>
                   </Link>
                 ))}

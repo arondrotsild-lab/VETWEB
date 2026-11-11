@@ -178,7 +178,7 @@ export default function SearchBar({ open, onClose }: Props) {
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-3">
                         <span className="text-xs font-bold" style={{ color: isActive ? 'rgba(124,184,66,0.8)' : 'rgba(124,184,66,0.4)' }}>
-                          {t('search.from')}{svc.price_from.toLocaleString()} ₽
+                          {t('search.from')}{svc.price_from.toLocaleString()} ₽
                         </span>
                         <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"
                           style={{ color: 'rgba(124,184,66,0.6)' }}

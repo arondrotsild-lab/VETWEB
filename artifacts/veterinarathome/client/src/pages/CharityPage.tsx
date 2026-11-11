@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCharity, donate } from '../api';
+import { AppSheet, HubStats, useIsMobile } from '../components/MobileHub';
 
 export interface CharityCase {
   id: number; name: string; species: string; age: string; city: string; photo_url: string;
@@ -9,7 +10,7 @@ export interface CharityCase {
 interface Thanks { thanks: string; karma: number; karmaTotal: number | null; name: string }
 
 const AMOUNTS = [300, 500, 1000, 3000, 5000];
-const rub = (n: number) => `${n.toLocaleString('ru-RU')} ₽`;
+const rub = (n: number) => `${n.toLocaleString('ru-RU')} ₽`;
 
 function Progress({ raised, goal }: { raised: number; goal: number }) {
   const pct = Math.min(100, Math.round((raised / goal) * 100));
@@ -35,7 +36,7 @@ function DonateModal({ c, onClose, onDone }: { c: CharityCase; onClose: () => vo
   const value = custom ? Number(custom) : amount;
 
   const pay = async () => {
-    if (!value || value < 50) { setErr('Минимальная сумма — 50 ₽'); return; }
+    if (!value || value < 50) { setErr('Минимальная сумма — 50 ₽'); return; }
     setErr(''); setStage('paying');
     try {
       const [res] = await Promise.all([donate(c.id, value), new Promise((r) => setTimeout(r, 1300))]);
@@ -44,8 +45,8 @@ function DonateModal({ c, onClose, onDone }: { c: CharityCase; onClose: () => vo
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-3xl bg-cream text-coffee-900 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-wrap fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="sheet w-full max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-cream text-coffee-900 shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} onClick={(e) => e.stopPropagation()}>
         {stage !== 'thanks' ? (
           <>
             <div className="flex items-center gap-4 p-5 border-b border-coffee-100">
@@ -59,7 +60,7 @@ function DonateModal({ c, onClose, onDone }: { c: CharityCase; onClose: () => vo
             <div className="p-5 space-y-5">
               <div>
                 <div className="text-sm font-bold mb-2">Сумма пожертвования</div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {AMOUNTS.map((a) => (
                     <button key={a} onClick={() => { setAmount(a); setCustom(''); }}
                       className={`py-2.5 rounded-xl text-sm font-bold border-2 transition-colors ${!custom && amount === a ? 'border-green-500 bg-green-500 text-white' : 'border-coffee-200 bg-white hover:border-green-400'}`}>
@@ -127,6 +128,8 @@ export default function CharityPage() {
   const [cases, setCases] = useState<CharityCase[]>([]);
   const [myKarma, setMyKarma] = useState<number | null>(null);
   const [active, setActive] = useState<CharityCase | null>(null);
+  const [view, setView] = useState<CharityCase | null>(null);
+  const isMobile = useIsMobile();
 
   const load = useCallback(() => {
     getCharity().then((d) => { setCases(d.cases); setMyKarma(d.myKarma); }).catch(() => {});
@@ -134,6 +137,59 @@ export default function CharityPage() {
   useEffect(load, [load]);
 
   const totalRaised = cases.reduce((s, c) => s + c.raised, 0);
+
+  // ── Телефон: подопечные — круглыми фото, история и «Помочь» — в окне снизу ──
+  if (isMobile) {
+    return (
+      <div className="min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] bg-gradient-to-b from-[#EFE5D6] to-[#E6D9C6] text-coffee-900 px-4 pt-[calc(4.75rem+env(safe-area-inset-top))] pb-4 flex flex-col gap-3">
+        <div className="rounded-3xl bg-gradient-to-br from-red-500 to-red-700 text-white p-4">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/75">Благотворительность</div>
+          <div className="text-xl font-black leading-tight mt-0.5">Помогите тем, у кого нет хозяина</div>
+          <div className="text-[12px] text-white/80 leading-snug mt-1">Ветеринары ВетДом лечат подопечных приютов без наценки — 100% суммы идёт на лечение.</div>
+        </div>
+        <HubStats light items={[
+          { v: <span className="text-[15px]">{rub(totalRaised)}</span>, l: 'собрано' },
+          { v: '47', l: 'уже здоровы' },
+          { v: myKarma !== null ? Math.round(myKarma) : '♥', l: myKarma !== null ? 'ваша карма' : 'с любовью' },
+        ]} />
+        <div className="grid grid-cols-3 gap-x-2 gap-y-3 mt-1">
+          {cases.map((c) => {
+            const pct = Math.min(100, Math.round((c.raised / c.goal) * 100));
+            return (
+              <button key={c.id} onClick={() => setView(c)} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <span className="relative">
+                  <img src={c.photo_url} alt={c.name} className={`w-[66px] h-[66px] rounded-full object-cover border-[3px] ${c.urgent ? 'border-red-500' : 'border-white'} shadow-md`} />
+                  {c.urgent && <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[12px] flex items-center justify-center border-2 border-white">🚨</span>}
+                </span>
+                <span className="text-[13px] font-black leading-tight">{c.name}</span>
+                <span className="w-16 h-1.5 rounded-full bg-coffee-200 overflow-hidden"><span className="block h-full bg-green-500" style={{ width: `${pct}%` }} /></span>
+                <span className="text-[10px] text-coffee-500 leading-tight text-center line-clamp-2">{c.problem}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {view && (
+          <AppSheet light title={`${view.name} · ${view.species}, ${view.age}`} onClose={() => setView(null)}>
+            <div className="pb-2">
+              <div className="relative h-48 rounded-2xl overflow-hidden">
+                <img src={view.photo_url} alt={view.name} className="w-full h-full object-cover" />
+                {view.urgent && <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-red-500 text-white text-[11px] font-bold shadow">🚨 Срочно</span>}
+                <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-white/90 text-coffee-800 text-[11px] font-semibold">📍 {view.city}</span>
+              </div>
+              <div className="mt-3 text-sm font-bold text-red-600">🩹 {view.problem}</div>
+              <p className="text-sm text-coffee-700 mt-2 leading-relaxed">{view.story}</p>
+              <div className="mt-3 rounded-xl bg-white/70 border border-coffee-100 px-3 py-2 text-xs text-coffee-700"><b>Нужно:</b> {view.needs}</div>
+              <div className="mt-4"><Progress raised={view.raised} goal={view.goal} /></div>
+              <div className="text-xs text-coffee-500 mt-2">❤️ {view.donors} человек уже помогли</div>
+              <button onClick={() => { setActive(view); setView(null); }} className="btn-gold w-full mt-4 py-4 text-base">❤️ Помочь {view.name}</button>
+            </div>
+          </AppSheet>
+        )}
+        {active && <DonateModal c={active} onClose={() => setActive(null)} onDone={load} />}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-milk text-coffee-900 pt-24 md:pt-[156px] pb-20 px-4">

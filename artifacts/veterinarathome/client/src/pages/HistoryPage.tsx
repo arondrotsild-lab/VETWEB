@@ -79,7 +79,7 @@ export default function HistoryPage() {
                       <div>
                         <div className="font-semibold text-white group-hover:text-green-400 transition-colors">{order.service_name}</div>
                         {order.pet_name && <div className="text-sm text-white/35 mt-0.5">🐾 {order.pet_name}</div>}
-                        <div className="text-sm text-white/25 mt-1 line-clamp-1">{order.address}</div>
+                        <div className="text-sm text-white/40 mt-1 leading-snug">{order.address}</div>
                         <div className="text-xs text-white/20 mt-1">{new Date(order.created_at).toLocaleString()}</div>
                       </div>
                     </div>
@@ -88,7 +88,7 @@ export default function HistoryPage() {
                         style={{ background: st.bg, border: `1px solid ${st.border}` }}>
                         {st.label}
                       </span>
-                      <div className="text-sm font-bold text-white/60 mt-2">{order.total_price?.toLocaleString()} ₽</div>
+                      <div className="text-sm font-bold text-white/60 mt-2">{order.total_price?.toLocaleString()} ₽</div>
                       {order.status === 'completed' && order.vet_name && (
                         <span role="button" tabIndex={0}
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/chat/${order.id}`); }}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getProducts, getLoyalty } from '../api';
 import { useAuth } from '../context/AuthContext';
 import FeedPack, { Pack } from '../components/FeedPack';
+import MobileHub, { useIsMobile } from '../components/MobileHub';
 
 export interface Product {
   id: number; category: string; brand: string; title: string; subtitle: string;
@@ -16,7 +17,7 @@ export interface Product {
   };
 }
 
-export const rub = (n: number) => `${n.toLocaleString('ru-RU')} ₽`;
+export const rub = (n: number) => `${n.toLocaleString('ru-RU')} ₽`;
 
 // Основная фасовка товара — та, что изображена на упаковке; по ней показываем точную цену
 export function mainVariantIndex(p: Product) {
@@ -42,11 +43,73 @@ export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [cat, setCat] = useState('Все');
   const [balance, setBalance] = useState<number | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => { getProducts().then(setProducts).catch(() => {}); }, []);
   useEffect(() => { if (user) getLoyalty().then((l) => setBalance(l.balance)).catch(() => {}); }, [user]);
 
   const list = useMemo(() => (cat === 'Все' ? products : products.filter((p) => p.category === cat)), [products, cat]);
+
+  // ── Телефон: магазин как в приложении — разделы иконками, товары списком в окне ──
+  if (isMobile) {
+    const Row = ({ p }: { p: Product }) => { const mv = mainVariant(p); return (
+      <Link to={`/shop/${p.id}`} className="flex gap-3 rounded-2xl bg-white border border-coffee-200/70 p-2.5 active:scale-[0.98] transition-transform">
+        <div className="w-[76px] h-[92px] rounded-xl overflow-hidden flex-shrink-0 bg-white"><ProductImage p={p} size="sm" /></div>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="text-[11px] text-coffee-500">{p.brand}</div>
+          <div className="text-[13px] font-semibold leading-snug">{p.title}</div>
+          <div className="text-[11px] text-coffee-500 mt-0.5">⭐ {p.rating} · {p.reviews.toLocaleString('ru-RU')}</div>
+          <div className="mt-auto flex items-center gap-2 pt-1">
+            <span className="font-black whitespace-nowrap">{rub(mv.price)}</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-[#FACC15] text-coffee-950 text-[11px] font-black whitespace-nowrap">{bon(mv.bonusPrice)}</span>
+            {mv.oldPrice && <span className="text-[11px] font-bold text-red-500">−{Math.round((1 - mv.price / mv.oldPrice) * 100)}%</span>}
+          </div>
+        </div>
+      </Link>
+    ); };
+    const listOf = (items: Product[]) => <div className="space-y-2 pb-2">{items.map((p) => <Row key={p.id} p={p} />)}{items.length === 0 && <p className="text-sm text-coffee-500 py-6 text-center">Товары скоро появятся</p>}</div>;
+    const by = (c: string) => products.filter((p) => p.category === c);
+    const ICONS: Record<string, [string, 'green' | 'yellow' | 'amber' | 'sky' | 'red' | 'purple' | 'white']> = {
+      'Корма': ['🥩', 'green'], 'Лакомства': ['🦴', 'amber'], 'Препараты': ['💊', 'red'], 'Амуниция': ['🦮', 'sky'], 'Игрушки': ['🧸', 'purple'], 'Дом и уход': ['🛁', 'white'],
+    };
+    const sale = products.filter((p) => mainVariant(p).oldPrice);
+    const hits = [...products].sort((a, b) => b.sold - a.sold).slice(0, 10);
+    return (
+      <MobileHub light
+        header={<>
+          <div className="rounded-3xl bg-[#FACC15] text-coffee-950 px-4 py-3.5 flex items-center gap-3 shadow-lg shadow-yellow-900/10">
+            <span className="text-3xl">🎁</span>
+            {user && balance !== null ? (
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-bold uppercase tracking-wider opacity-70">Ваши бонусы</div>
+                <div className="text-2xl font-black leading-none">{balance.toLocaleString('ru-RU')}&nbsp;Б</div>
+                <div className="text-[11px] opacity-70 leading-snug">1 бонус = 1&nbsp;₽ · можно оплатить товар целиком</div>
+              </div>
+            ) : (
+              <div className="flex-1"><div className="font-black">Покупайте за бонусы</div><Link to="/login" className="text-xs underline">Войдите, чтобы увидеть баланс</Link></div>
+            )}
+          </div>
+          <div className="rounded-3xl bg-gradient-to-r from-[#3A651C] to-[#1E140D] text-white p-4 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#DBB685]">Собственное производство</div>
+              <div className="text-lg font-black leading-tight mt-0.5">Корма «ВетДом Натурал»</div>
+              <div className="text-[12px] text-white/70 leading-snug mt-1">Рецепты наших ветеринаров, без красителей</div>
+            </div>
+            <div className="flex -space-x-5">
+              {products.filter((p) => p.pack).slice(0, 2).map((p) => (
+                <Link key={p.id} to={`/shop/${p.id}`} className="w-14 h-[72px] rounded-xl overflow-hidden border-2 border-white/20 shadow-lg"><ProductImage p={p} size="sm" /></Link>
+              ))}
+            </div>
+          </div>
+        </>}
+        tiles={[
+          { k: 'hits', label: 'Хиты продаж', sub: 'выбор владельцев · топ-10', icon: '🏆', tone: 'yellow' as const, title: 'Хиты продаж', content: listOf(hits) },
+          ...Object.entries(ICONS).map(([c, [icon, tone]]) => ({ k: c, label: c, sub: `${by(c).length} товаров`, icon, tone, content: listOf(by(c)) })),
+          { k: 'sale', label: 'Скидки', sub: `${sale.length} товаров`, icon: '🏷️', tone: 'red' as const, title: 'Товары со скидкой', content: listOf(sale) },
+        ]}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-milk text-coffee-900 pt-24 md:pt-[156px] pb-20 px-4">
@@ -67,7 +130,7 @@ export default function ShopPage() {
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider opacity-70">Ваши бонусы</div>
                 <div className="text-2xl font-black leading-none">{balance.toLocaleString('ru-RU')} Б</div>
-                <div className="text-[11px] opacity-70">1 бонус = 1 ₽ · можно оплатить товар целиком</div>
+                <div className="text-[11px] opacity-70">1 бонус = 1 ₽ · можно оплатить товар целиком</div>
               </div>
             ) : (
               <div>
@@ -96,7 +159,7 @@ export default function ShopPage() {
         </div>
 
         {/* Категории */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
+        <div data-tabs className="flex flex-wrap md:flex-nowrap gap-2 md:overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
           {CATS.map((c) => (
             <button key={c} onClick={() => setCat(c)}
               className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition-colors ${cat === c ? 'bg-coffee-900 text-white border-coffee-900' : 'bg-cream border-coffee-200 hover:border-coffee-400'}`}>

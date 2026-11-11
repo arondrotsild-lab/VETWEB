@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { LOC } from '../utils/domTranslate';
 import { useParams, Link } from 'react-router-dom';
+import { AppSheet, Tile3D, useIsMobile } from '../components/MobileHub';
 import { getOrder } from '../api';
 import { useTranslation } from 'react-i18next';
 import ServiceIcon from '../components/ServiceIcon';
@@ -422,6 +424,8 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
   const [replay, setReplay] = useState(0);
+  const isMobile = useIsMobile();
+  const [sheet, setSheet] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
     try { const data = await getOrder(Number(id)); setOrder(data); }
@@ -491,6 +495,108 @@ export default function OrderTrackingPage() {
   const vetExperience = order.vet_experience_years || DEMO_VET.experience;
   const vetRating = order.vet_rating || DEMO_VET.rating;
   const vetReviews = order.vet_reviews_count || DEMO_VET.reviews;
+
+  // ── Блоки деталей заказа: на компьютере — списком, на телефоне — по иконкам ──
+  const storyBlock = (<>
+        {(order.notes || order.ai_triage || order.voice_url) && (
+          <div className="rounded-2xl p-5 mb-4 border border-green-400/25 bg-green-500/[0.06]">
+            <div className="text-xs font-bold uppercase tracking-wider text-green-300 mb-2">📋 Передано врачу до приезда</div>
+            {order.notes && <p className="text-sm text-white/85 mb-3">«{order.notes}»</p>}
+            {order.voice_url && (
+              <div className="mb-3 rounded-xl bg-green-600 px-4 py-3 max-w-sm">
+                <VoiceBubble url={order.voice_url} duration={12} transcript={order.notes} mine />
+              </div>
+            )}
+            {order.ai_triage && (
+              <div className="text-sm space-y-2">
+                <p className="text-white/70"><b className="text-white">Оценка ИИ:</b> {order.ai_triage.summary}</p>
+                {order.ai_triage.do_now?.length > 0 && (
+                  <ul className="space-y-1">{order.ai_triage.do_now.map((d) => <li key={d} className="text-white/70 flex gap-2"><span className="text-green-400">✓</span>{d}</li>)}</ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+
+  </>);
+  const chatBlock = (<>
+        {order.vet_name && ['completed', 'arrived', 'in_progress'].includes(order.status) && (
+          <Link to={`/chat/${order.id}`}
+            className="flex items-center gap-4 rounded-2xl p-4 bg-green-600 hover:bg-green-500 transition-colors">
+            <span className="text-2xl">💬</span>
+            <div className="flex-1">
+              <div className="font-black text-white">Написать ветеринару</div>
+              <div className="text-xs text-white/80">{order.vet_name} ответит на вопросы о лечении и уходе</div>
+            </div>
+            <span className="text-white text-xl">→</span>
+          </Link>
+        )}
+
+
+  </>);
+  const detailsBlock = (<>
+        <div className="rounded-2xl overflow-hidden"
+          style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
+          <div className="px-5 py-3 border-b border-white/5 flex items-center gap-3">
+            <div className="w-6 h-6 text-green-400/60 flex-shrink-0">
+              <ServiceIcon name={order.service_name} size={18}/>
+            </div>
+            <h2 className="font-bold text-white text-sm">{getSvcName(order.service_name||'', lang)}</h2>
+          </div>
+          {[
+            { label:'Адрес', val: order.address },
+            ...(order.pet_name ? [{ label:'Питомец', val: order.pet_name }] : []),
+            { label:'Стоимость', val:`${order.total_price?.toLocaleString()} ₽` },
+            { label:'Создан', val: new Date(order.created_at).toLocaleString(LOC,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) },
+          ].map((row,i,arr)=>(
+            <div key={i} className="px-5 py-3 flex justify-between items-start"
+              style={{ borderBottom:i<arr.length-1?'1px solid rgba(255,255,255,0.05)':'none' }}>
+              <span className="text-white/30 text-sm flex-shrink-0 mr-4">{row.label}</span>
+              <span className="text-white text-sm font-medium text-right">{row.val}</span>
+            </div>
+          ))}
+        </div>
+
+
+  </>);
+  const historyBlock = (<>
+        {order.history && order.history.length > 0 && (
+          <div className="rounded-2xl p-5"
+            style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
+            <h2 className="font-bold text-white text-sm mb-4">Хронология</h2>
+            <div className="space-y-0">
+              {[...order.history].reverse().map((h,i,arr)=>{
+                const m = STATUS_META[h.status];
+                return (
+                  <div key={i} className="flex gap-3">
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ background:`${m?.color||'#fff'}18`, border:`1px solid ${m?.color||'#fff'}35` }}>
+                        <div className="w-2 h-2 rounded-full" style={{ background:m?.color||'#fff' }}/>
+                      </div>
+                      {i<arr.length-1 && <div className="w-px my-1 flex-1 bg-white/6" style={{ minHeight:16 }}/>}
+                    </div>
+                    <div className="pb-4 flex-1">
+                      <p className="font-semibold text-sm text-white">
+                        {h.status === 'pending' && currentStatus === 'pending'
+                          ? <SearchingLabel />
+                          : m?.label || h.status}
+                      </p>
+                      {h.comment && <p className="text-xs text-white/30 mt-0.5">{h.comment}</p>}
+                      <p className="text-xs text-white/20 mt-1">
+                        {new Date(h.created_at).toLocaleString(LOC,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+
+  </>);
 
   return (
     <div className="min-h-screen bg-[#1F150E] flex flex-col">
@@ -594,7 +700,7 @@ export default function OrderTrackingPage() {
                         ? <div className="w-2.5 h-2.5 rounded-full bg-green-400" style={{ animation:'sRing 1s ease-out infinite' }}/>
                         : <div className="w-2 h-2 rounded-full bg-white/10"/>}
                     </div>
-                    <span className="text-[9px] text-center leading-tight font-semibold hidden sm:block"
+                    <span className="text-[9px] text-center leading-tight font-semibold"
                       style={{ color: cur ? 'rgba(124,184,66,0.9)' : done ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)' }}>
                       {STEP_LABELS[s]}
                     </span>
@@ -647,102 +753,43 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Рассказ клиента и оценка ИИ — врач видит до приезда */}
-        {(order.notes || order.ai_triage || order.voice_url) && (
-          <div className="rounded-2xl p-5 mb-4 border border-green-400/25 bg-green-500/[0.06]">
-            <div className="text-xs font-bold uppercase tracking-wider text-green-300 mb-2">📋 Передано врачу до приезда</div>
-            {order.notes && <p className="text-sm text-white/85 mb-3">«{order.notes}»</p>}
-            {order.voice_url && (
-              <div className="mb-3 rounded-xl bg-green-600 px-4 py-3 max-w-sm">
-                <VoiceBubble url={order.voice_url} duration={12} transcript={order.notes} mine />
+        {isMobile && (() => {
+          const canChat = !!order.vet_name && ['completed', 'arrived', 'in_progress'].includes(order.status);
+          const hasStory = !!(order.notes || order.ai_triage || order.voice_url);
+          const T: { k: string; label: string; icon: string; tone: string; sub?: string; to?: string; title?: string; content?: React.ReactNode }[] = [
+            { k: 'details', label: 'Детали заказа', sub: 'адрес, цена', icon: '🧾', tone: 'amber', title: 'Детали заказа', content: detailsBlock },
+            ...(hasStory ? [{ k: 'story', label: 'Для врача', sub: 'ваш рассказ', icon: '📋', tone: 'green', title: 'Передано врачу', content: storyBlock }] : []),
+            { k: 'history', label: 'Ход заказа', sub: 'по минутам', icon: '⏱️', tone: 'sky', title: 'Хронология', content: historyBlock },
+            canChat ? { k: 'chat', label: 'Чат с врачом', sub: 'на связи', icon: '💬', tone: 'yellow', to: `/chat/${order.id}` }
+                    : { k: 'new', label: 'Новый вызов', sub: 'врач за 15–60 мин', icon: '🚑', tone: 'yellow', to: '/order' },
+          ];
+          const cur = T.find((x) => x.k === sheet);
+          return (
+            <>
+              <div className="grid grid-cols-2 gap-2.5">
+                {T.map((x) => <Tile3D key={x.k} icon={x.icon} label={x.label} sub={x.sub} tone={x.tone} to={x.to} onClick={x.to ? undefined : () => setSheet(x.k)} />)}
               </div>
-            )}
-            {order.ai_triage && (
-              <div className="text-sm space-y-2">
-                <p className="text-white/70"><b className="text-white">Оценка ИИ:</b> {order.ai_triage.summary}</p>
-                {order.ai_triage.do_now?.length > 0 && (
-                  <ul className="space-y-1">{order.ai_triage.do_now.map((d) => <li key={d} className="text-white/70 flex gap-2"><span className="text-green-400">✓</span>{d}</li>)}</ul>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+              {cur && cur.content && (
+                <AppSheet title={cur.title ?? cur.label} icon={cur.icon} onClose={() => setSheet(null)}>
+                  <div className="space-y-4 pb-2">{cur.content}</div>
+                </AppSheet>
+              )}
+            </>
+          );
+        })()}
 
+        {!isMobile && storyBlock}
         {/* Связь с врачом после визита */}
-        {order.vet_name && ['completed', 'arrived', 'in_progress'].includes(order.status) && (
-          <Link to={`/chat/${order.id}`}
-            className="flex items-center gap-4 rounded-2xl p-4 bg-green-600 hover:bg-green-500 transition-colors">
-            <span className="text-2xl">💬</span>
-            <div className="flex-1">
-              <div className="font-black text-white">Написать ветеринару</div>
-              <div className="text-xs text-white/80">{order.vet_name} ответит на вопросы о лечении и уходе</div>
-            </div>
-            <span className="text-white text-xl">→</span>
-          </Link>
-        )}
-
+        {!isMobile && chatBlock}
         {/* Order details */}
-        <div className="rounded-2xl overflow-hidden"
-          style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
-          <div className="px-5 py-3 border-b border-white/5 flex items-center gap-3">
-            <div className="w-6 h-6 text-green-400/60 flex-shrink-0">
-              <ServiceIcon name={order.service_name} size={18}/>
-            </div>
-            <h2 className="font-bold text-white text-sm">{getSvcName(order.service_name||'', lang)}</h2>
-          </div>
-          {[
-            { label:'Адрес', val: order.address },
-            ...(order.pet_name ? [{ label:'Питомец', val: order.pet_name }] : []),
-            { label:'Стоимость', val:`${order.total_price?.toLocaleString()} ₽` },
-            { label:'Создан', val: new Date(order.created_at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) },
-          ].map((row,i,arr)=>(
-            <div key={i} className="px-5 py-3 flex justify-between items-start"
-              style={{ borderBottom:i<arr.length-1?'1px solid rgba(255,255,255,0.05)':'none' }}>
-              <span className="text-white/30 text-sm flex-shrink-0 mr-4">{row.label}</span>
-              <span className="text-white text-sm font-medium text-right">{row.val}</span>
-            </div>
-          ))}
-        </div>
-
+        {!isMobile && detailsBlock}
         {/* History */}
-        {order.history && order.history.length > 0 && (
-          <div className="rounded-2xl p-5"
-            style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
-            <h2 className="font-bold text-white text-sm mb-4">Хронология</h2>
-            <div className="space-y-0">
-              {[...order.history].reverse().map((h,i,arr)=>{
-                const m = STATUS_META[h.status];
-                return (
-                  <div key={i} className="flex gap-3">
-                    <div className="flex flex-col items-center flex-shrink-0">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ background:`${m?.color||'#fff'}18`, border:`1px solid ${m?.color||'#fff'}35` }}>
-                        <div className="w-2 h-2 rounded-full" style={{ background:m?.color||'#fff' }}/>
-                      </div>
-                      {i<arr.length-1 && <div className="w-px my-1 flex-1 bg-white/6" style={{ minHeight:16 }}/>}
-                    </div>
-                    <div className="pb-4 flex-1">
-                      <p className="font-semibold text-sm text-white">
-                        {h.status === 'pending' && currentStatus === 'pending'
-                          ? <SearchingLabel />
-                          : m?.label || h.status}
-                      </p>
-                      {h.comment && <p className="text-xs text-white/30 mt-0.5">{h.comment}</p>}
-                      <p className="text-xs text-white/20 mt-1">
-                        {new Date(h.created_at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+        {!isMobile && historyBlock}
         {isActive && <p className="text-center text-white/20 text-xs">Обновляется автоматически каждые 10 сек</p>}
 
-        <div className="text-center pb-6">
+        {!isMobile && <div className="text-center pb-6">
           <Link to="/order" className="btn-gold inline-block">{t('tracking.newCall')}</Link>
-        </div>
+        </div>}
       </div>
     </div>
   );

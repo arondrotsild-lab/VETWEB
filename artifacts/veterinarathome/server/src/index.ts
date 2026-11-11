@@ -17,7 +17,7 @@ import charityRoutes, { initCharity } from './routes/charity';
 import shopRoutes, { initShop } from './routes/shop';
 import chatRoutes, { initChat, MEDIA_DIR } from './routes/chat';
 import voiceRoutes from './routes/voice';
-import vetCabinetRoutes, { initVetCabinet } from './routes/vetCabinet';
+import vetCabinetRoutes, { initVetCabinet, startOrderStream } from './routes/vetCabinet';
 import { seedVetCabinet } from './vetDemo';
 
 dotenv.config();
@@ -79,6 +79,7 @@ async function start() {
   await seedChats();
   await initVetCabinet();
   await seedVetCabinet();
+  startOrderStream();
   app.listen(PORT, () => {
     console.log(`🚀 ВетДом API запущен на порту ${PORT}`);
   });

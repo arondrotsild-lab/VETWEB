@@ -4,7 +4,7 @@ import { tierFor } from './routes/vetCabinet';
 
 // ═══════════════════════════════════════════════════════════════════
 //  Демо-данные для кабинета ветеринара: команда врачей, история
-//  визитов за полгода, расходы, смены, выплаты, новости.
+//  визитов за год, расходы, смены, выплаты, новости.
 //  Всё создаётся один раз; повторный запуск сервера ничего не ломает.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -13,18 +13,18 @@ export const DEMO_VET_PASSWORD = 'vetdemo1234';
 
 // Профили «поведения» врачей: сколько визитов, как часто клиенты возвращаются, как быстро принимают заказ
 const TEAM = [
-  { phone: '+79990000101', total: 128,  ret: 0.45, speed: 3.2, five: 0.93 },  // Анна Соколова — демо-врач
-  { phone: '+79990000102', total: 196, ret: 0.33, speed: 5.0, five: 0.92 },
-  { phone: '+79990000103', total: 72,  ret: 0.52, speed: 4.1, five: 0.88 },
-  { phone: '+79990000104', total: 188, ret: 0.30, speed: 2.1, five: 0.96 },
-  { phone: '+79990000105', total: 150, ret: 0.55, speed: 6.0, five: 0.92, name: 'Елена Воронцова', spec: 'Кардиолог, терапевт', exp: 11, photo: 'https://randomuser.me/api/portraits/women/65.jpg', bio: 'Кардиология мелких домашних животных, ЭКГ и наблюдение возрастных пациентов на дому.' },
-  { phone: '+79990000106', total: 40,  ret: 0.25, speed: 4.6, five: 0.85, name: 'Артём Лебедев', spec: 'Экзотические животные', exp: 5, photo: 'https://randomuser.me/api/portraits/men/41.jpg', bio: 'Птицы, рептилии, грызуны и кролики. Знаю, как не напугать маленьких пациентов.' },
-  { phone: '+79990000107', total: 92,  ret: 0.40, speed: 7.1, five: 0.90, name: 'Ольга Николаева', spec: 'Офтальмолог', exp: 8, photo: 'https://randomuser.me/api/portraits/women/12.jpg', bio: 'Диагностика и лечение болезней глаз, осмотр с портативной щелевой лампой.' },
-  { phone: '+79990000108', total: 170, ret: 0.38, speed: 5.4, five: 0.90, name: 'Сергей Миронов', spec: 'Ортопед-травматолог', exp: 14, photo: 'https://randomuser.me/api/portraits/men/52.jpg', bio: 'Травмы, хромота, реабилитация после операций. Работаю с крупными собаками.' },
-  { phone: '+79990000109', total: 118,  ret: 0.48, speed: 3.0, five: 0.94, name: 'Наталья Фёдорова', spec: 'Терапевт, УЗИ-диагностика', exp: 7, photo: 'https://randomuser.me/api/portraits/women/29.jpg', bio: 'Выездное УЗИ и терапия. Помогаю поставить диагноз без поездки в клинику.' },
-  { phone: '+79990000110', total: 26,  ret: 0.20, speed: 8.2, five: 0.82, name: 'Павел Зайцев', spec: 'Хирург', exp: 4, photo: 'https://randomuser.me/api/portraits/men/18.jpg', bio: 'Малые хирургические вмешательства, обработка ран, снятие швов.' },
-  { phone: '+79990000111', total: 58,  ret: 0.60, speed: 3.1, five: 0.95, name: 'Ксения Романова', spec: 'Дерматолог, груминг', exp: 3, photo: 'https://randomuser.me/api/portraits/women/90.jpg', bio: 'Кожа, шерсть, аллергии. Бережный уход для пугливых питомцев.' },
-  { phone: '+79990000112', total: 132, ret: 0.28, speed: 2.6, five: 0.89, name: 'Тимур Хабибуллин', spec: 'Скорая помощь, реаниматолог', exp: 10, photo: 'https://randomuser.me/api/portraits/men/60.jpg', bio: 'Экстренные выезды круглосуточно: отравления, травмы, тепловой удар.' },
+  { phone: '+79990000101', total: 1050, span: 330, m30: 100, ret: 0.45, speed: 3.2, five: 0.93 },  // Анна Соколова — демо-врач
+  { phone: '+79990000102', total: 1650, span: 365, m30: 105, ret: 0.33, speed: 5.0, five: 0.92 },
+  { phone: '+79990000103', total: 600, span: 300, m30: 75, ret: 0.52, speed: 4.1, five: 0.88 },
+  { phone: '+79990000104', total: 1720, span: 365, m30: 118, ret: 0.30, speed: 2.1, five: 0.96 },
+  { phone: '+79990000105', total: 1560, span: 365, m30: 104, ret: 0.55, speed: 6.0, five: 0.92, name: 'Елена Воронцова', spec: 'Кардиолог, терапевт', exp: 11, photo: 'https://randomuser.me/api/portraits/women/65.jpg', bio: 'Кардиология мелких домашних животных, ЭКГ и наблюдение возрастных пациентов на дому.' },
+  { phone: '+79990000106', total: 340, span: 200, m30: 52, ret: 0.25, speed: 4.6, five: 0.85, name: 'Артём Лебедев', spec: 'Экзотические животные', exp: 5, photo: 'https://randomuser.me/api/portraits/men/41.jpg', bio: 'Птицы, рептилии, грызуны и кролики. Знаю, как не напугать маленьких пациентов.' },
+  { phone: '+79990000107', total: 820, span: 330, m30: 80, ret: 0.40, speed: 7.1, five: 0.90, name: 'Ольга Николаева', spec: 'Офтальмолог', exp: 8, photo: 'https://randomuser.me/api/portraits/women/12.jpg', bio: 'Диагностика и лечение болезней глаз, осмотр с портативной щелевой лампой.' },
+  { phone: '+79990000108', total: 1580, span: 365, m30: 110, ret: 0.38, speed: 5.4, five: 0.90, name: 'Сергей Миронов', spec: 'Ортопед-травматолог', exp: 14, photo: 'https://randomuser.me/api/portraits/men/52.jpg', bio: 'Травмы, хромота, реабилитация после операций. Работаю с крупными собаками.' },
+  { phone: '+79990000109', total: 960, span: 330, m30: 102, ret: 0.48, speed: 3.0, five: 0.94, name: 'Наталья Фёдорова', spec: 'Терапевт, УЗИ-диагностика', exp: 7, photo: 'https://randomuser.me/api/portraits/women/29.jpg', bio: 'Выездное УЗИ и терапия. Помогаю поставить диагноз без поездки в клинику.' },
+  { phone: '+79990000110', total: 180, span: 120, m30: 45, ret: 0.20, speed: 8.2, five: 0.82, name: 'Павел Зайцев', spec: 'Хирург', exp: 4, photo: 'https://randomuser.me/api/portraits/men/18.jpg', bio: 'Малые хирургические вмешательства, обработка ран, снятие швов.' },
+  { phone: '+79990000111', total: 420, span: 240, m30: 70, ret: 0.60, speed: 3.1, five: 0.95, name: 'Ксения Романова', spec: 'Дерматолог, груминг', exp: 3, photo: 'https://randomuser.me/api/portraits/women/90.jpg', bio: 'Кожа, шерсть, аллергии. Бережный уход для пугливых питомцев.' },
+  { phone: '+79990000112', total: 1250, span: 365, m30: 112, ret: 0.28, speed: 2.6, five: 0.89, name: 'Тимур Хабибуллин', spec: 'Скорая помощь, реаниматолог', exp: 10, photo: 'https://randomuser.me/api/portraits/men/60.jpg', bio: 'Экстренные выезды круглосуточно: отравления, травмы, тепловой удар.' },
 ];
 
 const CLIENT_NAMES = [
@@ -79,6 +79,44 @@ const CONCERNS = [
   'Порезал лапу на прогулке, кровит', 'Пожилая кошка, нужен осмотр и консультация по питанию',
 ];
 
+
+// Цены услуг под экономику врача: ~5 выездов в день, средний чек ~2 500 ₽ → врач 150–180 тыс. ₽ в месяц
+const PRICES: [string, number, number][] = [
+  ['Первичный осмотр', 2500, 3500], ['Вакцинация', 1900, 3500], ['Консультация', 1400, 2500], ['Забор анализов', 1700, 3000],
+  ['Обработка от паразитов', 1400, 2500], ['Скорая ветпомощь', 4500, 7000], ['Капельница на дому', 3000, 5000],
+  ['Уход и груминг', 1700, 3000], ['Хирургическая помощь', 4000, 9000], ['Кастрация', 6000, 12000], ['Стерилизация', 8000, 15000],
+  ['Передержка', 1500, 3000], ['Выгул животного', 800, 1500],
+];
+
+async function meta(key: string) {
+  await pool.query('CREATE TABLE IF NOT EXISTS app_meta (key VARCHAR(50) PRIMARY KEY, value TEXT)');
+  return (await pool.query('SELECT value FROM app_meta WHERE key = $1', [key])).rows[0]?.value as string | undefined;
+}
+async function setMeta(key: string, value: string) {
+  await pool.query('INSERT INTO app_meta (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = $2', [key, value]);
+}
+
+async function applyPricing() {
+  if ((await meta('pricing')) === '2') return;
+  for (const [name, from, to] of PRICES) await pool.query('UPDATE services SET price_from = $2, price_to = $3 WHERE name = $1', [name, from, to]);
+  // Заказы, которые ещё ждут врача, — по новым ценам
+  await pool.query(`UPDATE orders o SET total_price = GREATEST(0, s.price_from - COALESCE(o.bonus_used, 0)) FROM services s
+                    WHERE s.id = o.service_id AND o.status = 'pending' AND o.vet_id IS NULL`);
+  await setMeta('pricing', '2');
+  console.log('✅ Цены услуг обновлены (средний чек ~2 500 ₽)');
+}
+
+const FIRST_NAMES = ['Екатерина', 'Игорь', 'Светлана', 'Алексей', 'Юлия', 'Максим', 'Ирина', 'Роман', 'Анастасия', 'Денис', 'Виктория', 'Кирилл',
+  'Полина', 'Олег', 'Марина', 'Андрей', 'Дарья', 'Никита', 'Елизавета', 'Владимир', 'Алина', 'Георгий', 'Татьяна', 'Михаил', 'Вероника',
+  'Илья', 'Людмила', 'Евгений', 'София', 'Артур', 'Ксения', 'Станислав', 'Валерия', 'Глеб', 'Надежда', 'Руслан', 'Кристина', 'Фёдор', 'Оксана', 'Тимофей'];
+const LAST_NAMES = [['Белов', 'Белова'], ['Котов', 'Котова'], ['Павлов', 'Павлова'], ['Громов', 'Громова'], ['Ершов', 'Ершова'], ['Соловьёв', 'Соловьёва'],
+  ['Ковалёв', 'Ковалёва'], ['Тихонов', 'Тихонова'], ['Мельников', 'Мельникова'], ['Абрамов', 'Абрамова'], ['Зуев', 'Зуева'], ['Фомин', 'Фомина'],
+  ['Голубев', 'Голубева'], ['Кудрявцев', 'Кудрявцева'], ['Сергеев', 'Сергеева'], ['Ильин', 'Ильина'], ['Комаров', 'Комарова'], ['Борисов', 'Борисова'],
+  ['Гусев', 'Гусева'], ['Чернов', 'Чернова'], ['Кузьмин', 'Кузьмина'], ['Титов', 'Титова'], ['Осипов', 'Осипова'], ['Широков', 'Широкова'],
+  ['Медведев', 'Медведева'], ['Карпов', 'Карпова'], ['Логинов', 'Логинова'], ['Галиев', 'Галиева'], ['Рябов', 'Рябова'], ['Савельев', 'Савельева'],
+  ['Фролов', 'Фролова'], ['Ахметов', 'Ахметова'], ['Панов', 'Панова'], ['Лукин', 'Лукина'], ['Егоров', 'Егорова'], ['Орехов', 'Орехова']];
+const FEMALE = /[ая]$/;
+
 // Детерминированный генератор случайных чисел — одинаковые демо-данные при каждом пересоздании
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -88,8 +126,15 @@ function rng(seed: number) {
 export async function seedVetCabinet() {
   try {
     await seedNews();
-    const done = await pool.query(`SELECT 1 FROM users WHERE phone = '+79990001001'`);
-    if (done.rows[0]) { await ensureIncoming(3); return; }
+    await applyPricing();
+    if ((await meta('vet_demo')) === '2') { await ensureIncoming(3); return; }
+
+    // Удаляем демо-историю прошлой версии (демо-клиенты и всё, что с ними связано)
+    await pool.query(`DELETE FROM users WHERE role = 'client' AND (phone LIKE '+79990001%' OR phone LIKE '+7999001%')`);
+    await pool.query('DELETE FROM vet_expenses');
+    await pool.query('DELETE FROM vet_payouts');
+    await pool.query('DELETE FROM vet_shifts WHERE ended_at IS NOT NULL');
+    await pool.query('DELETE FROM vet_order_declines');
 
     const R = rng(20261111);
     const pick = <T,>(a: T[]) => a[Math.floor(R() * a.length)];
@@ -118,20 +163,27 @@ export async function seedVetCabinet() {
          transport = 'Собственный автомобиль', daily_goal = 5, photo_url = '/demo-vet-anna.jpg', is_available = false
        WHERE user_id = (SELECT id FROM users WHERE phone = $1)`, [DEMO_VET_PHONE]);
 
-    // 2. Клиенты и питомцы
+    // 2. Клиенты и питомцы — 1500 человек, чтобы у каждого врача была своя база клиентов
     const clientHash = await bcrypt.hash('clientdemo1234', 10);
-    const clients: { id: number; pet: number }[] = [];
-    for (let i = 0; i < CLIENT_NAMES.length; i++) {
-      const phone = `+7999000${String(1001 + i)}`;
-      const u = await pool.query(
-        `INSERT INTO users (name, phone, password_hash, role, created_at) VALUES ($1,$2,$3,'client', NOW() - INTERVAL '200 days') RETURNING id`,
-        [CLIENT_NAMES[i], phone, clientHash]);
-      const p = PET_POOL[i % PET_POOL.length];
-      const pet = await pool.query(
-        `INSERT INTO pets (owner_id, name, species, breed, age_years, weight_kg, current_concern) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-        [u.rows[0].id, p[0], p[1], p[2], p[3], p[4], pick(CONCERNS)]);
-      clients.push({ id: u.rows[0].id, pet: pet.rows[0].id });
+    const N = 1500;
+    const names: string[] = [], phones: string[] = [];
+    for (let i = 0; i < N; i++) {
+      const first = FIRST_NAMES[i % FIRST_NAMES.length];
+      const last = LAST_NAMES[Math.floor(i / FIRST_NAMES.length) % LAST_NAMES.length][FEMALE.test(first) ? 1 : 0];
+      names.push(`${first} ${last}`);
+      phones.push(`+7999001${String(i).padStart(4, '0')}`);
     }
+    const users = (await pool.query(
+      `INSERT INTO users (name, phone, password_hash, role, created_at)
+       SELECT n, p, $3, 'client', NOW() - INTERVAL '370 days' FROM unnest($1::text[], $2::text[]) AS t(n, p) RETURNING id`,
+      [names, phones, clientHash])).rows.map((r) => r.id as number);
+    const pp = users.map((_, i) => PET_POOL[(i * 7) % PET_POOL.length]);
+    const pets = (await pool.query(
+      `INSERT INTO pets (owner_id, name, species, breed, age_years, weight_kg, current_concern)
+       SELECT * FROM unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::int[], $6::numeric[], $7::text[]) RETURNING id`,
+      [users, pp.map((p) => p[0]), pp.map((p) => p[1]), pp.map((p) => p[2]), pp.map((p) => p[3]), pp.map((p) => p[4]),
+       pp.map(() => pick(CONCERNS))])).rows.map((r) => r.id as number);
+    const clients = users.map((id, i) => ({ id, pet: pets[i] }));
 
     const svcRows = (await pool.query('SELECT id, name, price_from, price_to, duration_minutes FROM services')).rows;
     const svcByName = Object.fromEntries(svcRows.map((s) => [s.name, s]));
@@ -151,16 +203,27 @@ export async function seedVetCabinet() {
       if (!vetId) continue;
       const served: number[] = [];
       const items: { at: number; c: { id: number; pet: number }; s: typeof svcRows[0] }[] = [];
+      // Чем ближе к сегодняшнему дню — тем больше визитов (врач набирает клиентскую базу)
+      const pw = Math.log(30 / t.span) / Math.log(t.m30 / t.total);
+      const servedSet = new Set<number>();
       for (let k = 0; k < t.total; k++) {
-        // Ближе к сегодняшнему дню визитов больше — врач набирает обороты
-        let at = now - Math.floor(180 * Math.pow(R(), 1.8)) * 86400_000;
-        const d = new Date(at); d.setHours(8 + Math.floor(R() * 14), Math.floor(R() * 60), 0, 0); at = d.getTime();
-        if (vi === 0 && k < 2) at = now - (k === 0 ? 1.6 : 4.2) * H;          // у Анны два визита уже сегодня
-        if (at > now - H) at = now - (1 + R() * 3) * 86400_000;
-        const useRegular = served.length > 0 && R() < t.ret;
-        const regularId = useRegular ? pick(served) : -1;
-        const c = useRegular ? clients.find((x) => x.id === regularId)! : pick(clients);
-        if (!served.includes(c.id)) served.push(c.id);
+        let daysAgo = t.span * Math.pow(R(), pw);
+        let at = now - daysAgo * 86400_000;
+        const d = new Date(at);
+        const wd = d.getDay();
+        if ((wd === 0 || wd === 6) && R() < 0.8) d.setDate(d.getDate() - (wd === 0 ? 2 : 1));   // в основном будни
+        d.setHours(9 + Math.floor(R() * 11), Math.floor(R() * 60), 0, 0); at = d.getTime();
+        if (vi === 0 && k < 3) at = now - (k === 0 ? 1.4 : k === 1 ? 3.1 : 4.8) * H;           // у Анны три визита уже сегодня
+        if (at > now - H) at = now - (1 + R() * 2) * 86400_000;
+        let c: { id: number; pet: number };
+        if (served.length > 0 && R() < t.ret) {
+          const regularId = pick(served);
+          c = clients.find((x) => x.id === regularId)!;
+        } else {
+          c = pick(clients);
+          for (let tries = 0; tries < 6 && servedSet.has(c.id); tries++) c = pick(clients);   // новый клиент
+        }
+        if (!servedSet.has(c.id)) { servedSet.add(c.id); served.push(c.id); }
         items.push({ at, c, s: pickService() });
       }
       items.sort((a, b) => a.at - b.at);
@@ -170,7 +233,7 @@ export async function seedVetCabinet() {
       const shifts = new Map<string, [number, number]>();
       let cum = 0;
       for (const it of items) {
-        const price = it.s.price_from + Math.round((R() * (it.s.price_to - it.s.price_from)) / 100) * 100;
+        const price = it.s.price_from + Math.round((R() * 0.12 * (it.s.price_to - it.s.price_from)) / 100) * 100;
         const created = it.at - (0.5 + R() * 3) * H;
         const accepted = created + Math.max(0.6, t.speed * (0.4 + R() * 1.2)) * 60_000;
         const completed = it.at + it.s.duration_minutes * 60_000;
@@ -204,10 +267,9 @@ export async function seedVetCabinet() {
          WHERE vet_id = $1 AND vet_conclusion IS NULL AND status = 'completed'`, [vetId, ...CONCLUSIONS]);
 
       // Смены (часы на линии)
-      for (const [, [a, b]] of shifts) {
-        await pool.query('INSERT INTO vet_shifts (vet_id, started_at, ended_at) VALUES ($1,$2,$3)',
-          [vetId, new Date(a).toISOString(), new Date(Math.min(b, now - 10 * 60_000)).toISOString()]);
-      }
+      const sh = [...shifts.values()];
+      await pool.query(`INSERT INTO vet_shifts (vet_id, started_at, ended_at) SELECT $1, a, b FROM unnest($2::timestamp[], $3::timestamp[]) AS t(a, b)`,
+        [vetId, sh.map(([a]) => new Date(a).toISOString()), sh.map(([, b]) => new Date(Math.min(b, now - 10 * 60_000)).toISOString())]);
 
       // Выплаты: каждую неделю выводим заработанное, последние 8 дней — на балансе
       const weekly = new Map<number, number>();
@@ -222,18 +284,21 @@ export async function seedVetCabinet() {
       }
 
       // Расходы: бензин каждую неделю, материалы и препараты, обучение, связь
-      for (let w = 0; w < 26; w++) {
-        const base = now - w * 7 * 86400_000 - Math.floor(R() * 6) * 86400_000;
-        if (base > now) continue;
-        const ins = (cat: string, amt: number, note: string, at: number) =>
-          pool.query('INSERT INTO vet_expenses (vet_id, category, amount, note, spent_at) VALUES ($1,$2,$3,$4,$5)',
-            [vetId, cat, Math.round(amt / 10) * 10, note, new Date(Math.min(at, now - H)).toISOString()]);
-        await ins('fuel', 700 + R() * 700, pick(['АЗС Лукойл', 'АЗС Газпромнефть', 'Яндекс Такси', 'АЗС Роснефть']), base);
-        if (R() < 0.45) await ins('materials', 400 + R() * 800, pick(['Шприцы, бинты, перчатки', 'Катетеры и системы', 'Антисептики']), base - 2 * H);
-        if (R() < 0.25) await ins('drugs', 800 + R() * 1200, pick(['Вакцины (Нобивак)', 'Антибиотики', 'Противопаразитарные']), base - 5 * H);
-        if (w % 4 === 0) await ins('phone', 650, 'Мобильная связь и интернет', base - 24 * H);
-        if (w % 9 === 3) await ins('education', 2500 + R() * 2500, pick(['Вебинар по кардиологии', 'Курс «УЗИ в практике»', 'Конференция ветврачей']), base - 30 * H);
+      const ex: [string, number, string, number][] = [];
+      for (let w = 0; w < Math.ceil(t.span / 7); w++) {
+        const base = now - w * 7 * 86400_000 - Math.floor(R() * 5) * 86400_000;
+        const add = (cat: string, amt: number, note: string, at: number) => ex.push([cat, Math.round(amt / 10) * 10, note, Math.min(at, now - H)]);
+        add('fuel', 1300 + R() * 500, pick(['АЗС Лукойл', 'АЗС Газпромнефть', 'АЗС Роснефть']), base);
+        add('fuel', 1300 + R() * 500, pick(['АЗС Лукойл', 'АЗС Газпромнефть', 'Яндекс Такси']), base - 3 * 24 * H);
+        if (R() < 0.5) add('materials', 800 + R() * 800, pick(['Шприцы, бинты, перчатки', 'Катетеры и системы', 'Антисептики']), base - 2 * H);
+        if (R() < 0.3) add('drugs', 1500 + R() * 1000, pick(['Вакцины (Нобивак)', 'Антибиотики', 'Противопаразитарные']), base - 5 * H);
+        if (w % 4 === 0) add('phone', 650, 'Мобильная связь и интернет', base - 24 * H);
+        if (w % 9 === 3) add('education', 3000 + R() * 2000, pick(['Вебинар по кардиологии', 'Курс «УЗИ в практике»', 'Конференция ветврачей']), base - 30 * H);
       }
+      await pool.query(
+        `INSERT INTO vet_expenses (vet_id, category, amount, note, spent_at)
+         SELECT $1, c, a, n, t FROM unnest($2::text[], $3::int[], $4::text[], $5::timestamp[]) AS x(c, a, n, t)`,
+        [vetId, ex.map((e) => e[0]), ex.map((e) => e[1]), ex.map((e) => e[2]), ex.map((e) => new Date(e[3]).toISOString())]);
     }
 
     // 4. Синхронизируем рейтинг на сайте для клиентов с реальными оценками
@@ -247,8 +312,9 @@ export async function seedVetCabinet() {
          accepted_at = created_at + INTERVAL '4 minutes', completed_at = scheduled_at + INTERVAL '1 hour'
        WHERE status = 'completed' AND vet_id IS NOT NULL AND vet_payout IS NULL`);
 
+    await setMeta('vet_demo', '2');
     await ensureIncoming(3);
-    console.log('✅ Демо-данные кабинета ветеринара созданы');
+    console.log('✅ Данные кабинета ветеринара созданы (5 выездов в день, 150–180 тыс. ₽ в месяц)');
   } catch (err) {
     console.error('Ошибка демо-данных кабинета ветеринара:', err);
   }
@@ -265,7 +331,7 @@ export async function createIncomingOrder(minutesAgo = 0) {
   counter++;
   const c = await pool.query(
     `SELECT u.id, p.id AS pet FROM users u JOIN pets p ON p.owner_id = u.id
-     WHERE u.phone LIKE '+79990001%' ORDER BY random() LIMIT 1`);
+     WHERE u.phone LIKE '+7999001%' ORDER BY random() LIMIT 1`);
   if (!c.rows[0]) throw new Error('Нет демо-клиентов');
   const svcName = ['Первичный осмотр', 'Вакцинация', 'Скорая ветпомощь', 'Капельница на дому', 'Забор анализов', 'Консультация'][counter % 6];
   const s = (await pool.query('SELECT id, price_from, price_to FROM services WHERE name = $1', [svcName])).rows[0];

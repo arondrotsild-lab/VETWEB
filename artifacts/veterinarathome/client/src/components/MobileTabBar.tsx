@@ -21,7 +21,7 @@ export default function MobileTabBar() {
   const active = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#24150E]/95 backdrop-blur-xl border-t border-[#C2410C]/20"
+    <nav className="tabbar md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#24150E]/95 backdrop-blur-xl border-t border-[#C2410C]/20"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="grid grid-cols-5 h-16">
         {tabs.map((t) => t.center ? (

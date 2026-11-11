@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getServices } from '../api';
+import MobileHub, { HubStats, useIsMobile } from '../components/MobileHub';
 import ServiceIcon from '../components/ServiceIcon';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { useAuth } from '../context/AuthContext';
@@ -354,6 +355,7 @@ export default function ServiceDetailPage() {
   const [service, setService] = useState<Service | null>(null);
   const [allServices, setAllServices] = useState<Service[]>([]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     getServices().then((list: Service[]) => {
@@ -370,6 +372,95 @@ export default function ServiceDetailPage() {
   );
 
   const proof = getProof(service.name);
+
+  if (isMobile) {
+    const order = user ? '/order' : '/register';
+    return (
+      <MobileHub
+        header={<>
+          <div className="rounded-3xl bg-white/[0.07] border border-white/10 p-4">
+            <div className="flex items-start gap-3">
+              <span className="w-14 h-14 rounded-2xl flex items-center justify-center text-green-400 bg-green-400/10 border border-green-400/20 flex-shrink-0"><ServiceIcon name={service.name} size={30} /></span>
+              <div className="min-w-0">
+                <h1 className="text-xl font-black leading-tight">{service.name}</h1>
+                <p className="text-white/55 text-[13px] leading-snug mt-1">{service.description}</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div>
+                <div className="text-xl font-black text-green-400 whitespace-nowrap">{t('service.from')}{service.price_from.toLocaleString('ru-RU')}&nbsp;₽</div>
+                <div className="text-[11px] text-white/40">{service.duration_minutes} {t('service.min')} · {t('service.upTo')}{service.price_to.toLocaleString('ru-RU')}&nbsp;₽</div>
+              </div>
+              <Link to={order} className="btn-gold block text-center mt-3 py-3.5 text-[15px] font-bold">{t('service.callVet')}</Link>
+            </div>
+          </div>
+          <HubStats items={proof.stats.slice(0, 3).map((x) => ({ v: x.val, l: x.label.split(' ')[0] }))} />
+        </>}
+        tiles={[
+          { k: 'included', label: 'Что входит в визит', sub: `${proof.bullets.length} пунктов · врач у вас дома`, icon: '🩺', tone: 'green', title: t('service.included'), content: (
+            <ul className="space-y-2.5 pb-2">
+              {proof.bullets.map((b, i) => (
+                <li key={i} className="flex items-start gap-3 rounded-2xl bg-white/[0.04] border border-white/10 px-3.5 py-3">
+                  <span className="text-green-400 font-black">✓</span><span className="text-white/85 text-sm leading-snug">{b}</span>
+                </li>
+              ))}
+            </ul>
+          ) },
+          { k: 'animals', label: 'Кому помогли', sub: 'кошки, собаки', icon: '🐾', tone: 'amber', title: t('service.helped'), content: (
+            <div className="grid grid-cols-2 gap-2.5 pb-2">
+              {proof.animals.map((a, i) => (
+                <div key={i} className="rounded-2xl bg-green-500/[0.06] border border-green-400/15 p-4 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 text-green-400/80">{ANIMAL_ICON[a.emoji] ?? <span className="text-2xl">{a.emoji}</span>}</div>
+                  <div className="text-xl font-black">{a.count}</div>
+                  <div className="text-xs text-white/50">{a.kind}</div>
+                </div>
+              ))}
+            </div>
+          ) },
+          { k: 'faq', label: 'Вопросы', sub: `${proof.faq.length} ответов`, icon: '💬', tone: 'sky', title: t('service.faqTitle'), content: (
+            <div className="space-y-2 pb-2">
+              {proof.faq.map((item, i) => (
+                <details key={i} className="group rounded-2xl bg-white/[0.04] border border-white/10 px-4 py-3">
+                  <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-sm">{item.q}<span className="text-white/40 group-open:rotate-90 transition-transform">›</span></summary>
+                  <p className="text-white/60 text-sm mt-2 leading-relaxed">{item.a}</p>
+                </details>
+              ))}
+            </div>
+          ) },
+          { k: 'stats', label: 'В цифрах', sub: 'опыт врачей', icon: '📊', tone: 'purple', title: 'Услуга в цифрах', content: (
+            <div className="grid grid-cols-2 gap-2.5 pb-2">
+              {proof.stats.map((x, i) => (
+                <div key={i} className="rounded-2xl bg-white/[0.04] border border-white/10 p-4">
+                  <div className="text-xl font-black text-green-400">{x.val}</div>
+                  <div className="text-xs text-white/50 leading-snug">{x.label}</div>
+                </div>
+              ))}
+            </div>
+          ) },
+          { k: 'urgent', label: 'Срочно', sub: '24/7', icon: '🚑', tone: 'red', title: t('service.urgencyTitle'), content: (
+            <div className="pb-2">
+              <p className="text-white/75 text-sm leading-relaxed">{t('service.urgencyDesc')}</p>
+              <div className="flex items-center gap-2 text-green-400 text-sm font-semibold mt-3"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />{t('service.onlineNow')}</div>
+              <Link to={order} className="btn-gold block text-center mt-4 py-3.5 font-bold">{t('service.callNow')}</Link>
+            </div>
+          ) },
+          { k: 'others', label: 'Все услуги', sub: `${allServices.length}`, icon: '🧰', tone: 'white', title: t('service.others'), content: (
+            <div className="space-y-2 pb-2">
+              {allServices.filter((x) => x.id !== service.id).map((x) => (
+                <Link key={x.id} to={`/service/${x.id}`} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] border border-white/10 px-3.5 py-3 active:scale-[0.98]">
+                  <span className="text-green-400/70 flex-shrink-0"><ServiceIcon name={x.name} size={20} /></span>
+                  <span className="flex-1 min-w-0 text-sm font-semibold leading-snug">{x.name}</span>
+                  <span className="text-xs text-green-400 whitespace-nowrap">{t('service.from')}{x.price_from.toLocaleString('ru-RU')}&nbsp;₽</span>
+                </Link>
+              ))}
+            </div>
+          ) },
+          { k: 'passport', label: 'Ветпаспорт', sub: 'медкарта', icon: '📘', tone: 'yellow', to: '/medcard' },
+          { k: 'chat', label: 'Чат', sub: 'с врачом', icon: '📱', tone: 'green', to: user ? '/chats' : '/login' },
+        ]}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#1F150E] text-white pt-24 md:pt-[156px] pb-20">
@@ -394,8 +485,8 @@ export default function ServiceDetailPage() {
             <p className="text-white/50 text-lg leading-relaxed mb-8">{service.description}</p>
             <div className="flex items-center gap-6 mb-8">
               <div>
-                <div className="text-2xl font-black text-green-400">{t('service.from')}{service.price_from.toLocaleString()} ₽</div>
-                <div className="text-white/25 text-xs mt-0.5">{t('service.upTo')}{service.price_to.toLocaleString()} ₽</div>
+                <div className="text-2xl font-black text-green-400">{t('service.from')}{service.price_from.toLocaleString()} ₽</div>
+                <div className="text-white/25 text-xs mt-0.5">{t('service.upTo')}{service.price_to.toLocaleString()} ₽</div>
               </div>
               <div className="w-px h-10 bg-white/10" />
               <div>
@@ -512,7 +603,7 @@ export default function ServiceDetailPage() {
                 <span className="flex-shrink-0 text-green-400/60"><ServiceIcon name={s.name} size={20} /></span>
                 <div>
                   <div className="text-sm font-semibold text-white/80">{s.name}</div>
-                  <div className="text-xs text-green-400 mt-0.5">{t('service.from')}{s.price_from.toLocaleString()} ₽</div>
+                  <div className="text-xs text-green-400 mt-0.5">{t('service.from')}{s.price_from.toLocaleString()} ₽</div>
                 </div>
               </Link>
             ))}

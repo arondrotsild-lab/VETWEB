@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { LOC } from '../utils/domTranslate';
 import { Link, useParams } from 'react-router-dom';
 import { getChat, sendChat, sendVoice } from '../api';
 import { useVoiceRecorder, VoiceBubble, VoicePayload } from '../components/VoiceMessage';
@@ -11,8 +12,8 @@ interface ChatOrder {
 
 const QUICK = ['Как давать лекарство?', 'Можно ли купать и гулять?', 'Чем лучше кормить?', 'Появились новые симптомы'];
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-const day = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+const time = (iso: string) => new Date(iso).toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' });
+const day = (iso: string) => new Date(iso).toLocaleDateString(LOC, { day: 'numeric', month: 'long' });
 
 export default function ChatPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -73,11 +74,11 @@ export default function ChatPage() {
   let lastDay = '';
 
   return (
-    <div className="min-h-screen bg-milk text-coffee-900 pt-16 md:pt-[150px] md:pb-6 md:px-3">
-      <div className="max-w-3xl mx-auto flex flex-col md:rounded-3xl overflow-hidden bg-cream md:border border-coffee-200/70 shadow-xl h-[calc(100dvh-64px)] md:h-[calc(100vh-175px)] md:min-h-[520px]">
+    <div className="chat-screen min-h-screen bg-milk text-coffee-900 pt-16 md:pt-[150px] md:pb-6 md:px-3">
+      <div className="chat-box max-w-3xl mx-auto flex flex-col md:rounded-3xl overflow-hidden bg-cream md:border border-coffee-200/70 shadow-xl h-[calc(100dvh-64px)] md:h-[calc(100vh-175px)] md:min-h-[520px]">
         {/* Шапка диалога */}
         <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-coffee-100">
-          <Link to="/chats" className="text-coffee-400 hover:text-coffee-800 text-xl px-1" aria-label="Назад">←</Link>
+          <Link to="/chats" className="hidden md:inline text-coffee-400 hover:text-coffee-800 text-xl px-1" aria-label="Назад">←</Link>
           {order?.vet_photo_url
             ? <img src={order.vet_photo_url} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-green-500" />
             : <div className="w-11 h-11 rounded-full bg-green-500 text-white font-black flex items-center justify-center">{firstName[0]}</div>}
@@ -95,7 +96,7 @@ export default function ChatPage() {
         {order && (
           <div className="px-4 py-2.5 bg-[#FBF6EF] border-b border-coffee-100 text-xs text-coffee-600 flex items-center gap-2">
             <span>🩺</span>
-            <span className="truncate">Визит {day(order.scheduled_at)} · {order.service_name}{order.pet_name ? ` · ${order.pet_name}` : ''}</span>
+            <span className="min-w-0 leading-snug">Визит {day(order.scheduled_at)} · {order.service_name}{order.pet_name ? ` · ${order.pet_name}` : ''}</span>
             <Link to={`/order/${order.id}`} className="ml-auto font-bold text-green-700 whitespace-nowrap">Детали →</Link>
           </div>
         )}
@@ -138,7 +139,7 @@ export default function ChatPage() {
         </div>
 
         {/* Быстрые вопросы */}
-        <div className="flex gap-2 px-3 pt-3 overflow-x-auto bg-white" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex flex-wrap gap-2 px-3 pt-3 bg-white">
           {QUICK.map((q) => (
             <button key={q} onClick={() => send(q)} className="whitespace-nowrap text-xs font-semibold px-3 py-1.5 rounded-full border border-green-300 text-green-700 hover:bg-green-50">{q}</button>
           ))}
@@ -167,7 +168,7 @@ export default function ChatPage() {
           <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-end gap-2 p-3 bg-white">
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={`Сообщение или голосовое для ${firstName || 'врача'}…`}
+              placeholder="Сообщение…"
               className="flex-1 resize-none rounded-2xl border border-coffee-200 bg-[#FBF8F3] px-4 py-3 text-sm focus:outline-none focus:border-green-500 max-h-32" />
             {text.trim() ? (
               <button type="submit" aria-label="Отправить"

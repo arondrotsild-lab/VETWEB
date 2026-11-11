@@ -30,8 +30,8 @@ export default function FeedPack({ pack, size = 'md' }: { pack: Pack; size?: 'sm
               <img src={pack.pet} alt="" className="w-full h-full object-cover" />
             </div>
 
-            <div className="mt-[1em] font-black text-[1.45em] leading-[1.1]">{pack.flavor}</div>
-            <div className="mt-[0.4em] text-[0.85em] uppercase tracking-[0.18em] text-white/75">
+            <div className="mt-[1em] font-black text-[1.3em] leading-[1.1] w-full [overflow-wrap:anywhere]">{pack.flavor}</div>
+            <div className="mt-[0.4em] text-[0.8em] uppercase tracking-[0.1em] text-white/75">
               {pack.animal === 'dog' ? 'для собак' : 'для кошек'} · сделано ветеринарами
             </div>
             <div className="mt-auto mb-[1.2em] flex items-center justify-between w-full">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LOC } from '../utils/domTranslate';
 import { Link } from 'react-router-dom';
 import { getChats } from '../api';
 
@@ -39,7 +40,7 @@ export default function ChatsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="font-black truncate">{d.vet_name}</div>
-                    {d.last_at && <div className="text-[11px] text-coffee-400 whitespace-nowrap">{new Date(d.last_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</div>}
+                    {d.last_at && <div className="text-[11px] text-coffee-400 whitespace-nowrap">{new Date(d.last_at).toLocaleDateString(LOC, { day: 'numeric', month: 'short' })}</div>}
                   </div>
                   <div className="text-xs text-coffee-500 truncate">{d.service_name}{d.pet_name ? ` · ${d.pet_name}` : ''}</div>
                   <div className="text-sm text-coffee-700 truncate mt-0.5">

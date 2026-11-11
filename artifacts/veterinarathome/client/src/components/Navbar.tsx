@@ -5,6 +5,7 @@ import { getPets } from '../api';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import SearchBar from './SearchBar';
+import Flag from './Flag';
 
 interface Pet { id: number; name: string; species: string; photo_url?: string; }
 
@@ -26,6 +27,7 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [langOpen, setLangOpen]     = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mLangOpen, setMLangOpen] = useState(false);
   const currentLang = LANGS.find(l => l.code === i18n.language) ?? LANGS[0];
 
   useEffect(() => {
@@ -149,7 +151,8 @@ export default function Navbar() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white/85 hover:text-white transition-all"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
-                <span>{currentLang.label}</span>
+                <Flag code={currentLang.code} />
+                <span>{currentLang.code.toUpperCase()}</span>
                 <svg className={`w-2.5 h-2.5 transition-transform ${langOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 10 10">
                   <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -157,15 +160,15 @@ export default function Navbar() {
               {langOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-36 rounded-xl py-1.5 z-50 overflow-hidden"
+                  <div className="absolute right-0 top-full mt-2 w-40 rounded-xl py-1.5 z-50 overflow-hidden"
                     style={{ background: 'rgba(31,21,14,0.97)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(32px)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
                     {LANGS.map(l => (
                       <button key={l.code} onClick={() => changeLang(l.code)}
                         className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold transition-colors ${
                           l.code === i18n.language ? 'text-green-400 bg-green-400/8' : 'text-white/50 hover:text-white hover:bg-white/5'
                         }`}>
-                        <span className="font-bold w-5 text-center">{l.label}</span>
-                        <span className="font-normal opacity-70">{l.full}</span>
+                        <Flag code={l.code} />
+                        <span className="font-semibold">{l.full}</span>
                         {l.code === i18n.language && (
                           <svg className="w-3 h-3 ml-auto text-green-400" fill="none" viewBox="0 0 12 12">
                             <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -284,6 +287,27 @@ export default function Navbar() {
             )}
           </div>
 
+          {/* Язык — на телефоне всегда на виду */}
+          <div className="md:hidden relative" data-notr>
+            <button onClick={() => setMLangOpen(!mLangOpen)} aria-label="Language"
+              className="flex items-center gap-1 h-9 px-2.5 rounded-full border border-white/20 bg-black/25 text-white text-[12px] font-bold">
+              <Flag code={currentLang.code} className="w-[22px] h-[15px]" />{currentLang.code.toUpperCase()}
+            </button>
+            {mLangOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMLangOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-44 rounded-2xl p-1.5 z-50 bg-[#2A1D14] border border-white/15 shadow-2xl">
+                  {[['ru', '🇷🇺', 'Русский'], ['en', '🇬🇧', 'English'], ['tr', '🇹🇷', 'Türkçe'], ['ar', '🇸🇦', 'العربية']].map(([code, flag, name]) => (
+                    <button key={code} onClick={() => { setMLangOpen(false); changeLang(code); }}
+                      className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-left ${code === i18n.language ? 'bg-green-500/20 text-green-300' : 'text-white/85'}`}>
+                      <Flag code={code} className="w-6 h-4" /><span className="flex-1">{name}</span>{code === i18n.language && '✓'}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
             {/* Mobile search icon */}
           <button className="md:hidden p-2 text-white/50 hover:text-white transition-colors" onClick={() => setSearchOpen(true)}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 20 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -325,8 +349,8 @@ export default function Navbar() {
             <div className="flex gap-2 pt-2 border-t border-white/5">
               {LANGS.map(l => (
                 <button key={l.code} onClick={() => changeLang(l.code)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${l.code === i18n.language ? 'text-green-400 bg-green-400/10' : 'text-white/30 hover:text-white/70'}`}>
-                  {l.label}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${l.code === i18n.language ? 'text-green-400 bg-green-400/10' : 'text-white/50 hover:text-white/80'}`}>
+                  <Flag code={l.code} className="w-[18px] h-3" />{l.code.toUpperCase()}
                 </button>
               ))}
             </div>

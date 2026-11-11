@@ -370,7 +370,7 @@ export default function OrderPage() {
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: 'rgba(124,184,66,0.08)', border: '1px solid rgba(124,184,66,0.2)' }}>
                   <span className="text-green-400 text-xs font-bold">{selectedServices.length} {t('order.selected')}</span>
                   <span className="text-white/30 text-xs">·</span>
-                  <span className="text-white/50 text-xs">{t('order.from')}{totalFrom.toLocaleString()} ₽</span>
+                  <span className="text-white/50 text-xs">{t('order.from')}{totalFrom.toLocaleString()} ₽</span>
                 </div>
               )}
             </div>
@@ -388,7 +388,7 @@ export default function OrderPage() {
                     <div className="font-bold text-white mb-1">{tName(svc.name)}</div>
                     <div className="text-white/35 text-xs mb-3 line-clamp-1">{getSvcDesc(svc.description, svc.name, lang)}</div>
                     <div className="flex items-center justify-between">
-                      <span className="text-green-400 font-bold text-sm">{t('order.from')}{svc.price_from.toLocaleString()} ₽</span>
+                      <span className="text-green-400 font-bold text-sm">{t('order.from')}{svc.price_from.toLocaleString()} ₽</span>
                       <span className="text-white/20 text-xs">{svc.duration_minutes} {t('order.min')}</span>
                     </div>
                     <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
@@ -423,7 +423,7 @@ export default function OrderPage() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-white/30 text-[10px]">{t('order.totalFrom')}</div>
-                  <div className="text-green-400 font-black text-lg">{totalFrom.toLocaleString()} ₽</div>
+                  <div className="text-green-400 font-black text-lg">{totalFrom.toLocaleString()} ₽</div>
                 </div>
               </div>
             )}
@@ -689,14 +689,14 @@ export default function OrderPage() {
                   {selectedServices.map((svc) => (
                     <div key={svc.id} className="flex items-center justify-between">
                       <span className="text-white text-sm flex items-center gap-2"><ServiceIcon name={svc.name} size={14} className="text-green-400/70" />{tName(svc.name)}</span>
-                      <span className="text-green-400 text-sm font-semibold">{t('order.from')}{svc.price_from.toLocaleString()} ₽</span>
+                      <span className="text-green-400 text-sm font-semibold">{t('order.from')}{svc.price_from.toLocaleString()} ₽</span>
                     </div>
                   ))}
                 </div>
                 {selectedServices.length > 1 && (
                   <div className="flex justify-between mt-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                     <span className="text-white/40 text-sm font-semibold">{t('order.totalFrom')}</span>
-                    <span className="text-green-400 font-black text-base">{totalFrom.toLocaleString()} ₽</span>
+                    <span className="text-green-400 font-black text-base">{totalFrom.toLocaleString()} ₽</span>
                   </div>
                 )}
               </div>
@@ -734,16 +734,16 @@ export default function OrderPage() {
                   </span>
                   <div className="flex-1">
                     <div className="text-white font-bold text-sm">Оплатить бонусами — до 30% стоимости</div>
-                    <div className="text-white/50 text-xs">На счёте {bonusBalance.toLocaleString('ru-RU')} бонусов · 1 бонус = 1 ₽</div>
+                    <div className="text-white/50 text-xs">На счёте {bonusBalance.toLocaleString('ru-RU')} бонусов · 1 бонус = 1 ₽</div>
                   </div>
-                  {useBonus && bonusToUse > 0 && <div className="text-[#FACC15] font-black">−{bonusToUse.toLocaleString('ru-RU')} ₽</div>}
+                  {useBonus && bonusToUse > 0 && <div className="text-[#FACC15] font-black">−{bonusToUse.toLocaleString('ru-RU')} ₽</div>}
                 </div>
                 {useBonus && bonusToUse > 0 && (
                   <div className="mt-3 pt-3 border-t border-white/10 flex justify-between text-sm">
                     <span className="text-white/60">К оплате после визита</span>
                     <span className="text-white font-black">
-                      <span className="line-through text-white/35 font-normal mr-2">{totalFrom.toLocaleString('ru-RU')} ₽</span>
-                      {totalToPay.toLocaleString('ru-RU')} ₽
+                      <span className="line-through text-white/35 font-normal mr-2">{totalFrom.toLocaleString('ru-RU')} ₽</span>
+                      {totalToPay.toLocaleString('ru-RU')} ₽
                     </span>
                   </div>
                 )}

@@ -2,6 +2,11 @@ import { Router, Response, NextFunction } from 'express';
 import pool from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { createIncomingOrder } from '../vetDemo';
+import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { MEDIA_DIR } from './chat';
 
 // ═══════════════════════════════════════════════════════════════════
 //  Кабинет ветеринара (исполнителя): онлайн-статус, заказы, доход,
@@ -10,11 +15,14 @@ import { createIncomingOrder } from '../vetDemo';
 
 // Уровни врача: чем больше выполненных визитов и выше рейтинг — тем больше доля от заказа
 export const VET_TIERS = [
-  { key: 'bronze',   name: 'Бронза',  icon: '🥉', percent: 55, minOrders: 0,   minRating: 0,   color: '#D08A4E' },
-  { key: 'silver',   name: 'Серебро', icon: '🥈', percent: 60, minOrders: 30,  minRating: 4.7, color: '#C9CFD6' },
-  { key: 'gold',     name: 'Золото',  icon: '🥇', percent: 65, minOrders: 80,  minRating: 4.8, color: '#F2C14E' },
-  { key: 'platinum', name: 'Платина', icon: '💎', percent: 70, minOrders: 150, minRating: 4.9, color: '#9FE3E0' },
+  { key: 'bronze',   name: 'Бронза',  icon: '🥉', percent: 55, minOrders: 0,    minRating: 0,   color: '#D08A4E' },
+  { key: 'silver',   name: 'Серебро', icon: '🥈', percent: 60, minOrders: 300,  minRating: 4.7, color: '#C9CFD6' },
+  { key: 'gold',     name: 'Золото',  icon: '🥇', percent: 65, minOrders: 800,  minRating: 4.8, color: '#F2C14E' },
+  { key: 'platinum', name: 'Платина', icon: '💎', percent: 70, minOrders: 1500, minRating: 4.9, color: '#9FE3E0' },
 ];
+
+// Финансовый план врача: ~5 выездов в день × 22 рабочих дня, средний чек ~2 500 ₽ → 150–180 тыс. ₽ в месяц
+export const MONTH_PLAN = 150000;
 
 export function tierFor(completed: number, rating: number) {
   let t = VET_TIERS[0];
@@ -30,6 +38,9 @@ export const EXPENSE_CATEGORIES: Record<string, string> = {
   phone: 'Связь',
   other: 'Прочее',
 };
+
+// Призовой фонд лиги: врач, занявший 1 место по итогам месяца
+export const PRIZE_FIRST = 30000;
 
 const ACTIVE = ['confirmed', 'on_the_way', 'arrived', 'in_progress'];
 const NEXT: Record<string, string> = { confirmed: 'on_the_way', on_the_way: 'arrived', arrived: 'in_progress', in_progress: 'completed' };
@@ -49,6 +60,13 @@ export async function initVetCabinet() {
     ALTER TABLE vets ADD COLUMN IF NOT EXISTS transport VARCHAR(100);
     ALTER TABLE vets ADD COLUMN IF NOT EXISTS daily_goal INTEGER DEFAULT 5;
     ALTER TABLE vets ADD COLUMN IF NOT EXISTS online_since TIMESTAMP;
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS radius_km INTEGER DEFAULT 10;
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS service_ids INTEGER[] DEFAULT '{}';
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS schedule JSONB;
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS payout_bank VARCHAR(60);
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS payout_card VARCHAR(4);
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS inn VARCHAR(12);
+    ALTER TABLE vets ADD COLUMN IF NOT EXISTS auto_payout BOOLEAN DEFAULT false;
 
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
@@ -186,6 +204,54 @@ const ORDER_FIELDS = `o.id, o.status, o.address, o.address_lat, o.address_lng, o
 const ORDER_JOINS = `FROM orders o JOIN users u ON u.id = o.client_id
   LEFT JOIN pets p ON p.id = o.pet_id LEFT JOIN services s ON s.id = o.service_id`;
 
+// ─── Поток заявок для врача на линии ───────────────────────────────
+// Пока врач на линии и кабинет открыт: первая заявка — через 30 секунд после выхода на линию,
+// дальше по кругу: минута → 30 секунд → минута … Один поток на врача, сколько бы вкладок ни было открыто.
+const GAPS = [30_000, 60_000];
+const lastSeen = new Map<number, number>();                                   // vetId → когда кабинет последний раз спрашивал ленту
+const stream = new Map<number, { since: number; sent: number }>();           // vetId → с какого момента на линии и сколько заявок уже пришло
+
+function dueAt(since: number, n: number) {
+  let t = since;
+  for (let i = 0; i <= n; i++) t += GAPS[i % GAPS.length];
+  return t;
+}
+
+async function pruneIncoming() {
+  // в ленте — не больше 10 непринятых заявок: самые старые убираем
+  await pool.query(
+    `DELETE FROM orders WHERE id IN (
+       SELECT o.id FROM orders o JOIN users u ON u.id = o.client_id
+       WHERE o.status = 'pending' AND o.vet_id IS NULL AND u.phone LIKE '+7999001%'
+       ORDER BY o.created_at DESC OFFSET 9)`);
+}
+
+export function startOrderStream() {
+  setInterval(async () => {
+    try {
+      const r = await pool.query(`SELECT id, online_since FROM vets WHERE is_available = true AND online_since IS NOT NULL`);
+      const now = Date.now();
+      const onlineIds = new Set<number>();
+      for (const v of r.rows) {
+        onlineIds.add(v.id);
+        const since = new Date(v.online_since).getTime();
+        let st = stream.get(v.id);
+        if (!st || st.since !== since) { st = { since, sent: 0 }; stream.set(v.id, st); }
+        const open = now - (lastSeen.get(v.id) ?? 0) < 20_000;                 // кабинет открыт (лента запрашивалась недавно)
+        if (!open) continue;
+        if (now >= dueAt(st.since, st.sent)) {
+          // если кабинет был закрыт и пропустил несколько «слотов» — не высыпаем всё разом, а продолжаем по расписанию от текущего момента
+          while (now >= dueAt(st.since, st.sent + 1)) st.sent++;
+          await pruneIncoming();
+          await createIncomingOrder();
+          st.sent++;
+        }
+      }
+      for (const id of stream.keys()) if (!onlineIds.has(id)) stream.delete(id);
+    } catch (e) { console.error('Поток заявок:', e); }
+  }, 2000);
+}
+
 // ─── router ───────────────────────────────────────────────────────
 const router = Router();
 router.use(authMiddleware);
@@ -194,7 +260,8 @@ router.use((req, res, next) => { loadVet(req as VetReq, res, next).catch(next); 
 // GET /api/vet/me — профиль, статус, ключевые цифры, уровень
 router.get('/me', wrap(async (req, res) => {
   const v = await pool.query(
-    `SELECT v.*, u.name, u.phone, u.email, u.avatar_url, u.created_at AS joined_at
+    `SELECT v.*, u.name, u.phone, u.email, u.avatar_url,
+       LEAST(u.created_at, (SELECT MIN(completed_at) FROM orders WHERE vet_id = v.id)) AS joined_at
      FROM vets v JOIN users u ON u.id = v.user_id WHERE v.id = $1`, [req.vet!.id]);
   const metrics = await vetMetrics(req.vet!.id);
   res.json({
@@ -218,10 +285,47 @@ router.patch('/profile', wrap(async (req, res) => {
     [str(b.specialization, 255), Number.isFinite(+b.experience_years) && b.experience_years !== '' && b.experience_years != null ? Math.max(0, Math.min(60, +b.experience_years)) : null,
      str(b.bio, 2000), str(b.city, 100), str(b.district, 255), str(b.education, 500), str(b.transport, 100),
      Number.isFinite(+b.daily_goal) && b.daily_goal != null ? Math.max(1, Math.min(20, +b.daily_goal)) : null, req.vet!.id]);
+  // Настройки работы и выплат
+  const sets: string[] = []; const vals: unknown[] = [];
+  const put = (col: string, v: unknown) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+  if (b.radius_km != null && Number.isFinite(+b.radius_km)) put('radius_km', Math.max(1, Math.min(100, Math.round(+b.radius_km))));
+  if (Array.isArray(b.service_ids)) put('service_ids', b.service_ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 50));
+  if (b.schedule && typeof b.schedule === 'object' && JSON.stringify(b.schedule).length < 2000) put('schedule', JSON.stringify(b.schedule));
+  if (typeof b.payout_bank === 'string') put('payout_bank', b.payout_bank.trim().slice(0, 60) || null);
+  if (typeof b.payout_card === 'string') { const d = b.payout_card.replace(/\D/g, ''); put('payout_card', d.length >= 4 ? d.slice(-4) : null); }   // храним только последние 4 цифры
+  if (typeof b.inn === 'string') { const d = b.inn.replace(/\D/g, ''); put('inn', d.length === 12 ? d : null); }
+  if (typeof b.auto_payout === 'boolean') put('auto_payout', b.auto_payout);
+  if (sets.length) { vals.push(req.vet!.id); await pool.query(`UPDATE vets SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals); }
   if (str(b.name, 255) || b.email !== undefined) {
     await pool.query('UPDATE users SET name = COALESCE(NULLIF($1, \'\'), name), email = COALESCE($2, email) WHERE id = $3',
       [str(b.name, 255), str(b.email, 255), req.user!.id]);
   }
+  res.json({ ok: true });
+}));
+
+// POST /api/vet/photo — { image: dataURL } новая фотография врача
+const AVATAR_DIR = path.join(MEDIA_DIR, 'avatars');
+router.post('/photo', wrap(async (req, res) => {
+  const m = /^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/i.exec(String(req.body?.image || ''));
+  if (!m) { res.status(400).json({ error: 'Выберите фото в формате JPG, PNG или WEBP' }); return; }
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length < 1000 || buf.length > 5_000_000) { res.status(400).json({ error: 'Фото должно быть до 5 МБ' }); return; }
+  fs.mkdirSync(AVATAR_DIR, { recursive: true });
+  const ext = m[1].toLowerCase() === 'jpg' ? 'jpeg' : m[1].toLowerCase();
+  const file = `vet-${req.vet!.id}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  fs.writeFileSync(path.join(AVATAR_DIR, file), buf);
+  const url = `/api/media/avatars/${file}`;
+  await pool.query('UPDATE vets SET photo_url = $1 WHERE id = $2', [url, req.vet!.id]);
+  res.json({ photo_url: url });
+}));
+
+// POST /api/vet/password — { old_password, new_password }
+router.post('/password', wrap(async (req, res) => {
+  const { old_password, new_password } = req.body || {};
+  if (typeof new_password !== 'string' || new_password.length < 6) { res.status(400).json({ error: 'Новый пароль — минимум 6 символов' }); return; }
+  const u = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user!.id]);
+  if (!u.rows[0] || !(await bcrypt.compare(String(old_password || ''), u.rows[0].password_hash))) { res.status(400).json({ error: 'Текущий пароль указан неверно' }); return; }
+  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [await bcrypt.hash(new_password, 10), req.user!.id]);
   res.json({ ok: true });
 }));
 
@@ -243,8 +347,10 @@ router.patch('/status', wrap(async (req, res) => {
 // GET /api/vet/feed — новые заказы рядом + мои активные
 router.get('/feed', wrap(async (req, res) => {
   const vetId = req.vet!.id;
-  const me = await pool.query('SELECT is_available FROM vets WHERE id = $1', [vetId]);
+  lastSeen.set(vetId, Date.now());
+  const me = await pool.query('SELECT is_available, service_ids FROM vets WHERE id = $1', [vetId]);
   const online = !!me.rows[0]?.is_available;
+  const myServices: number[] = me.rows[0]?.service_ids ?? [];   // какие услуги врач выполняет (пусто — все)
   const metrics = await vetMetrics(vetId);
   const percent = tierFor(metrics.completed_total, metrics.rating).percent;
   const incoming = online ? (await pool.query(
@@ -252,7 +358,8 @@ router.get('/feed', wrap(async (req, res) => {
      WHERE o.status = 'pending' AND o.vet_id IS NULL
        AND NOT EXISTS (SELECT 1 FROM vet_order_declines d WHERE d.vet_id = $1 AND d.order_id = o.id)
        AND o.created_at >= NOW() - INTERVAL '2 days'
-     ORDER BY o.created_at DESC LIMIT 20`, [vetId])).rows : [];
+       AND (cardinality($2::int[]) = 0 OR o.service_id = ANY($2::int[]))
+     ORDER BY o.created_at DESC LIMIT 20`, [vetId, myServices])).rows : [];
   const active = (await pool.query(
     `SELECT ${ORDER_FIELDS} ${ORDER_JOINS} WHERE o.vet_id = $1 AND o.status = ANY($2) ORDER BY o.scheduled_at`,
     [vetId, ACTIVE])).rows;
@@ -425,7 +532,7 @@ router.delete('/expenses/:id', wrap(async (req, res) => {
 router.post('/payouts', wrap(async (req, res) => {
   const balance = await balanceOf(req.vet!.id);
   const amount = Math.round(Number(req.body?.amount) || balance);
-  if (!(amount >= 500) || amount > balance) { res.status(400).json({ error: 'Минимальная сумма вывода — 500 ₽, и не больше баланса' }); return; }
+  if (!(amount >= 500) || amount > balance) { res.status(400).json({ error: 'Минимальная сумма вывода — 500 ₽, и не больше баланса' }); return; }
   await pool.query(`INSERT INTO vet_payouts (vet_id, amount, status) VALUES ($1, $2, 'processing')`, [req.vet!.id, amount]);
   res.status(201).json({ ok: true, balance: balance - amount });
 }));
@@ -440,12 +547,12 @@ router.get('/kpi', wrap(async (req, res) => {
   const species = (await pool.query(`SELECT COUNT(DISTINCT p.species)::int n FROM orders o JOIN pets p ON p.id = o.pet_id WHERE o.vet_id = $1 AND o.status = 'completed'`, [vetId])).rows[0].n;
   const achievements = [
     { icon: '🩺', title: 'Первый визит', desc: 'Выполнен первый заказ', progress: Math.min(m.completed_total, 1), target: 1 },
-    { icon: '🔥', title: 'Полтинник', desc: '50 выполненных визитов', progress: Math.min(m.completed_total, 50), target: 50 },
-    { icon: '🏅', title: 'Сотня', desc: '100 выполненных визитов', progress: Math.min(m.completed_total, 100), target: 100 },
-    { icon: '⭐', title: 'Любимец клиентов', desc: '50 оценок «5 звёзд»', progress: Math.min(fiveStars, 50), target: 50 },
+    { icon: '🔥', title: 'Пятьсот', desc: '500 выполненных визитов', progress: Math.min(m.completed_total, 500), target: 500 },
+    { icon: '🏅', title: 'Тысяча', desc: '1000 выполненных визитов', progress: Math.min(m.completed_total, 1000), target: 1000 },
+    { icon: '⭐', title: 'Любимец клиентов', desc: '500 оценок «5 звёзд»', progress: Math.min(fiveStars, 500), target: 500 },
     { icon: '⚡', title: 'Молния', desc: 'Принимать заказ в среднем быстрее 4 минут', progress: m.avg_accept_min && m.avg_accept_min <= 4 ? 1 : 0, target: 1 },
     { icon: '🔁', title: 'Семейный доктор', desc: '40% клиентов возвращаются к вам', progress: Math.min(m.return_rate, 40), target: 40 },
-    { icon: '🌙', title: 'Ночной дозор', desc: '10 ночных вызовов (22:00–6:00)', progress: Math.min(night, 10), target: 10 },
+    { icon: '💰', title: 'План месяца', desc: 'Заработать 150 000 ₽ за месяц', progress: Math.min(m.earned_month, 150000), target: 150000 },
     { icon: '🦜', title: 'Универсал', desc: 'Пациенты 4 разных видов', progress: Math.min(species, 4), target: 4 },
   ];
   res.json({
@@ -455,6 +562,7 @@ router.get('/kpi', wrap(async (req, res) => {
     goals: {
       today: { done: m.completed_today, target: goal, bonus: 500 },
       week: { done: m.completed_week, target: goal * 5, bonus: 3000 },
+      month: { earned: m.earned_month, target: MONTH_PLAN, max: 180000 },
     },
     achievements,
   });
@@ -496,10 +604,12 @@ router.get('/league', wrap(async (req, res) => {
     metric,
     season: now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }),
     days_left: Math.ceil((seasonEnd.getTime() - now.getTime()) / 86400_000),
+    prize_fund: PRIZE_FIRST,
+    leader_score: rows[0]?.score ?? 0,
     prizes: [
-      { place: 1, prize: 'Бонус 15 000 ₽ + статус «Врач месяца»' },
-      { place: 2, prize: 'Бонус 10 000 ₽' },
-      { place: 3, prize: 'Бонус 5 000 ₽' },
+      { place: 1, prize: `Приз ${PRIZE_FIRST.toLocaleString('ru-RU')} ₽ + статус «Врач месяца»` },
+      { place: 2, prize: 'Бонус 10 000 ₽' },
+      { place: 3, prize: 'Бонус 5 000 ₽' },
     ],
     rows: rows.map(({ completed_total, ...x }) => ({ ...x, completed_total })),
   });
@@ -524,6 +634,8 @@ router.get('/news', wrap(async (_req, res) => {
 
 // POST /api/vet/demo/incoming — для показа: прилетает новый заказ от клиента
 router.post('/demo/incoming', wrap(async (_req, res) => {
+  // В ленте держим не больше 10 непринятых заявок: самые старые убираем, чтобы поток оставался «живым»
+  await pruneIncoming();
   const id = await createIncomingOrder();
   res.status(201).json({ id });
 }));

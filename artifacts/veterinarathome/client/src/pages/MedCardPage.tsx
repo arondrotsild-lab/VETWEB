@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { LOC } from '../utils/domTranslate';
+import { createPortal } from 'react-dom';
+import { Tile3D } from '../components/MobileHub';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getPetByPassport } from '../api';
@@ -77,7 +80,7 @@ const VISITS = [
 
 /* ───────────────────────── Вспомогательные функции ───────────────────────── */
 
-const fmt = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmt = (iso: string) => new Date(iso).toLocaleDateString(LOC, { day: 'numeric', month: 'long', year: 'numeric' });
 const daysUntil = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
 
 function ageText(birth: string) {
@@ -111,6 +114,14 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
     <span className="text-amber-400 text-xs font-bold uppercase tracking-[0.3em]">{children}</span>
   </div>
 );
+
+function vaccineStatus(until: string | null) {
+  if (!until) return { label: 'Действителен', cls: 'bg-green-500/15 text-green-300 border-green-400/30', icon: '✓' };
+  const d = daysUntil(until);
+  if (d < 0) return { label: 'Просрочено', cls: 'bg-red-500/15 text-red-300 border-red-400/30', icon: '!' };
+  if (d <= 45) return { label: `Через ${d} дн.`, cls: 'bg-amber-400/15 text-amber-200 border-amber-400/30', icon: '◷' };
+  return { label: 'Действует', cls: 'bg-green-500/15 text-green-300 border-green-400/30', icon: '✓' };
+}
 
 /* ───────────────────────── Поиск по ID ───────────────────────── */
 
@@ -213,7 +224,265 @@ function WeightChart() {
 
 /* ───────────────────────── Страница ───────────────────────── */
 
+/* ───────────────────────── Мобильная версия: экран приложения ───────────────────────── */
+
+type Sec = 'data' | 'vaccines' | 'parasites' | 'meds' | 'visits' | 'weight' | 'trips' | 'search';
+
+const TILES: { k: Sec; label: string; icon: string; bg: string; ring: string }[] = [
+  { k: 'data', label: 'Паспорт питомца', icon: '🪪', bg: 'bg-amber-400/15', ring: 'ring-amber-300/30' },
+  { k: 'vaccines', label: 'Прививки', icon: '💉', bg: 'bg-green-500/15', ring: 'ring-green-400/30' },
+  { k: 'parasites', label: 'Паразиты', icon: '🛡️', bg: 'bg-sky-400/15', ring: 'ring-sky-300/30' },
+  { k: 'meds', label: 'Лекарства', icon: '💊', bg: 'bg-red-400/15', ring: 'ring-red-300/30' },
+  { k: 'visits', label: 'Визиты', icon: '🩺', bg: 'bg-white/10', ring: 'ring-white/15' },
+  { k: 'weight', label: 'Вес', icon: '⚖️', bg: 'bg-purple-400/15', ring: 'ring-purple-300/30' },
+  { k: 'trips', label: 'Поездки', icon: '✈️', bg: 'bg-[#FACC15]/15', ring: 'ring-[#FACC15]/30' },
+  { k: 'search', label: 'Найти', icon: '🔎', bg: 'bg-white/10', ring: 'ring-white/15' },
+];
+
+function Sheet({ title, icon, onClose, children }: { title: string; icon: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end">
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
+      <div className="sheet relative w-full max-h-[88vh] overflow-y-auto overscroll-contain rounded-t-3xl bg-[#2A1D14] border-t border-white/10 shadow-2xl screen-in"
+        style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}>
+        <div className="sticky top-0 z-10 bg-[#2A1D14]/95 backdrop-blur px-5 pt-3 pb-3 border-b border-white/[0.06]">
+          <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-3" />
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{icon}</span>
+            <h2 className="text-lg font-black flex-1">{title}</h2>
+            <button onClick={onClose} aria-label="Закрыть" className="w-9 h-9 rounded-full bg-white/[0.08] flex items-center justify-center text-white/70 active:scale-95">✕</button>
+          </div>
+        </div>
+        <div className="px-5 pt-4">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function MobileMedCard() {
+  const age = useMemo(() => ageText(PET.birth), []);
+  const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState<Sec | null>(null);
+  const countries = new Set(TRIPS.map((t) => t.country)).size;
+  const next = UPCOMING[0];
+  const copyId = () => {
+    navigator.clipboard?.writeText(PET.passportId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {});
+  };
+  const tile = TILES.find((t) => t.k === open);
+  const TONE: Record<Sec, string> = { data: 'amber', vaccines: 'green', parasites: 'sky', meds: 'red', visits: 'white', weight: 'purple', trips: 'yellow', search: 'white' };
+  const SUB: Record<Sec, string> = {
+    data: `${PET.breed.split(' ')[0]}, ${age.short}`, vaccines: 'все в порядке', parasites: `через ${daysUntil(next.date)} дн.`,
+    meds: `${MEDS.length} назначения`, visits: `${VISITS.length} приёмов`, weight: `${PET.weight} кг`, trips: `${countries} стран`, search: 'по ID',
+  };
+  const parasites = VACCINES.filter((v) => /Клещ|Гельминт/.test(v.name));
+  const vaccines = VACCINES.filter((v) => !/Клещ|Гельминт/.test(v.name));
+
+  const VaccineRow = ({ v }: { v: typeof VACCINES[number] }) => {
+    const st = vaccineStatus(v.until);
+    return (
+      <div className="py-3 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold leading-snug">{v.name}</div>
+          <div className="text-xs text-white/50 leading-snug mt-0.5">{v.drug} · {new Date(v.date).toLocaleDateString(LOC)}{v.until ? ` → до ${new Date(v.until).toLocaleDateString(LOC)}` : ''}</div>
+        </div>
+        <span className={`flex-shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${st.cls}`}>{st.icon} {st.label}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] bg-gradient-to-b from-[#3B2A1E] via-[#2A1D14] to-[#1F150E] text-white px-4 pt-[calc(4.75rem+env(safe-area-inset-top))] pb-4 flex flex-col gap-3">
+      {/* Карточка питомца */}
+      <div className="rounded-3xl bg-cream text-coffee-900 p-3.5 flex gap-3.5 shadow-xl shadow-black/30">
+        <div className="relative flex-shrink-0">
+          <img src={PET.photo} alt={PET.name} className="w-[84px] h-[100px] rounded-2xl object-cover border-[3px] border-white shadow" />
+          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-bold shadow whitespace-nowrap">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />Здоров
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[9px] uppercase tracking-[0.2em] text-coffee-400">Ветпаспорт · Pet passport</div>
+          <div className="text-[26px] font-black leading-none mt-1">{PET.name}</div>
+          <div className="text-green-700 font-semibold text-[13px] mt-1 leading-snug">{PET.breed}</div>
+          <button onClick={copyId} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-green-500/50 bg-white/70 px-2 py-1 active:scale-95">
+            <span className="font-mono font-black text-[13px] tracking-wider">{PET.passportId}</span>
+            <span className="text-[10px] text-green-700 font-bold">{copied ? '✓' : '⧉'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Коротко */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {[
+          { v: age.short, l: 'возраст' },
+          { v: `${PET.weight}\u00A0кг`, l: 'вес в норме' },
+          { v: '5 / 5', l: 'прививок' },
+        ].map((x) => (
+          <div key={x.l} className="glass3d rounded-2xl bg-white/[0.07] border border-white/15 py-2.5">
+            <div className="text-[17px] font-black whitespace-nowrap">{x.v}</div>
+            <div className="text-[10px] text-white/50 uppercase tracking-wide">{x.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Ближайшее напоминание */}
+      <button onClick={() => setOpen('parasites')} className="[@media(max-height:700px)]:hidden flex items-center gap-3 rounded-2xl bg-[#FACC15]/12 border border-[#FACC15]/35 px-3.5 py-2.5 text-left active:scale-[0.98] transition-transform">
+        <span className="w-11 flex-shrink-0 rounded-xl bg-[#FACC15] text-[#1E140D] text-center py-1">
+          <span className="block text-base font-black leading-none">{new Date(next.date).getDate()}</span>
+          <span className="block text-[9px] font-bold uppercase">{new Date(next.date).toLocaleDateString(LOC, { month: 'short' })}</span>
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-bold leading-snug">{next.title}</span>
+          <span className="block text-[11px] text-white/60 leading-snug">{next.sub} · через {daysUntil(next.date)} дн.</span>
+        </span>
+        <span className="text-[#FACC15] font-bold">›</span>
+      </button>
+
+      {/* Разделы */}
+      <div className="grid grid-cols-3 gap-2.5 mt-1">
+        {TILES.map((t, i) => (
+          <Tile3D key={t.k} wide={i === 0} icon={t.icon} label={t.label} sub={SUB[t.k]} tone={TONE[t.k]} onClick={() => setOpen(t.k)} />
+        ))}
+      </div>
+
+      <Link to="/register" className="mt-auto rounded-2xl bg-green-500 active:bg-green-600 text-center font-bold text-sm py-3 [@media(max-height:700px)]:hidden">
+        Завести такой паспорт своему питомцу →
+      </Link>
+
+      {/* ── Окна разделов ── */}
+      {open && tile && (
+        <Sheet title={tile.k === 'trips' ? `Путешествия · ${countries} стран` : tile.label} icon={tile.icon} onClose={() => setOpen(null)}>
+          {open === 'data' && (
+            <div className="rounded-2xl bg-cream text-coffee-900 p-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                {[
+                  ['Вид', PET.species], ['Пол', PET.sex], ['Дата рождения', fmt(PET.birth)], ['Возраст', age.full],
+                  ['Окрас', PET.color], ['Вес', `${PET.weight} кг`], ['Микрочип', PET.chip], ['Владелец', PET.owner],
+                ].map(([l, v]) => (
+                  <div key={l}>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-coffee-400">{l}</div>
+                    <div className="text-sm font-semibold leading-snug break-words">{v}</div>
+                  </div>
+                ))}
+                <div className="col-span-2">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-coffee-400">Паспорт выдан</div>
+                  <div className="text-sm font-semibold">{PET.issued}</div>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-coffee-200 text-xs text-coffee-600 leading-relaxed">
+                Хронических заболеваний нет. Пищевая аллергия на курицу — под контролем диетой.
+              </div>
+            </div>
+          )}
+          {open === 'vaccines' && (
+            <>
+              <p className="text-sm text-white/60 mb-1">Все прививки актуальны — можно путешествовать.</p>
+              <div className="divide-y divide-white/10">{vaccines.map((v) => <VaccineRow key={v.name} v={v} />)}</div>
+            </>
+          )}
+          {open === 'parasites' && (
+            <>
+              <div className="divide-y divide-white/10">{parasites.map((v) => <VaccineRow key={v.name} v={v} />)}</div>
+              <div className="text-xs uppercase tracking-wider text-white/40 mt-5 mb-2">Ближайшие события</div>
+              <div className="space-y-2">
+                {UPCOMING.map((u) => (
+                  <div key={u.title} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] border border-white/10 px-3 py-2.5">
+                    <div className="w-12 flex-shrink-0 rounded-lg bg-white/5 border border-white/10 text-center py-1">
+                      <div className="text-base font-black leading-none">{new Date(u.date).getDate()}</div>
+                      <div className="text-[10px] text-white/50">{new Date(u.date).toLocaleDateString(LOC, { month: 'short' })}</div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold leading-snug">{u.title}</div>
+                      <div className="text-xs text-white/50 leading-snug">{u.sub} · через {daysUntil(u.date)} дн.</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {open === 'meds' && (
+            <div className="space-y-2.5">
+              {MEDS.map((m) => (
+                <div key={m.name} className="rounded-2xl bg-white/[0.04] border border-white/10 p-3.5">
+                  <div className="font-bold">{m.name}</div>
+                  <div className="text-sm text-white/65 mt-0.5">{m.dose}</div>
+                  <div className="text-xs text-amber-200/70 mt-1">{m.why}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {open === 'visits' && (
+            <div className="space-y-2.5">
+              {VISITS.map((v) => (
+                <div key={v.date} className={`rounded-2xl p-3.5 border ${v.home ? 'bg-green-500/[0.07] border-green-400/25' : 'bg-white/[0.03] border-white/10'}`}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl leading-none">{v.flag}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold leading-snug">{v.title}</div>
+                      <div className="text-xs text-white/50 leading-snug">{fmt(v.date)} · {v.place}</div>
+                      <div className="text-xs text-white/40">{v.vet}</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-white/85 mt-2 leading-snug"><span className="text-white/40 text-xs">Диагноз: </span>{v.diagnosis}</div>
+                  <div className="text-sm text-white/70 mt-1 leading-snug"><span className="text-white/40 text-xs">Лечение: </span>{v.treatment}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {open === 'weight' && (
+            <>
+              <div className="flex items-end gap-3 mb-2">
+                <div className="text-4xl font-black">{PET.weight}<span className="text-lg text-white/50"> кг</span></div>
+                <span className="mb-1.5 text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 border border-green-400/30">в норме 22–26 кг</span>
+              </div>
+              <p className="text-sm text-white/55 mb-3">В 2025 году вес вышел за норму — врач скорректировал питание, и за год Марс вернулся в форму.</p>
+              <WeightChart />
+            </>
+          )}
+          {open === 'trips' && (
+            <div className="space-y-2.5">
+              {TRIPS.map((t) => (
+                <div key={t.city} className="flex gap-3 rounded-2xl bg-cream text-coffee-900 p-3.5">
+                  <span className="text-3xl leading-none">{t.flag}</span>
+                  <div className="min-w-0">
+                    <div className="font-black leading-tight">{t.country} · {t.city}</div>
+                    <div className="text-xs text-green-700 font-semibold">{t.period}</div>
+                    <div className="text-xs text-coffee-600 mt-1 leading-snug">{t.note}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {open === 'search' && (
+            <>
+              <p className="text-sm text-white/60 mb-3">Врач в любой стране находит паспорт по ID и видит прививки, аллергии и прошлое лечение.</p>
+              <PassportSearch />
+            </>
+          )}
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
 export default function MedCardPage() {
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const f = () => setMobile(mq.matches);
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, []);
+  return mobile ? <MobileMedCard /> : <DesktopMedCard />;
+}
+
+function DesktopMedCard() {
   useReveal();
   const age = useMemo(() => ageText(PET.birth), []);
   const [copied, setCopied] = useState(false);
@@ -224,13 +493,6 @@ export default function MedCardPage() {
     navigator.clipboard?.writeText(PET.passportId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {});
   };
 
-  const vaccineStatus = (until: string | null) => {
-    if (!until) return { label: 'Действителен', cls: 'bg-green-500/15 text-green-300 border-green-400/30', icon: '✓' };
-    const d = daysUntil(until);
-    if (d < 0) return { label: 'Просрочено', cls: 'bg-red-500/15 text-red-300 border-red-400/30', icon: '!' };
-    if (d <= 45) return { label: `Через ${d} дн.`, cls: 'bg-amber-400/15 text-amber-200 border-amber-400/30', icon: '◷' };
-    return { label: 'Действует', cls: 'bg-green-500/15 text-green-300 border-green-400/30', icon: '✓' };
-  };
 
   return (
     <div className="min-h-screen bg-[#1F150E] text-white pt-24 md:pt-[156px] pb-20 px-4">
@@ -365,7 +627,7 @@ export default function MedCardPage() {
                   <li key={u.title} className="flex items-center gap-3">
                     <div className="w-14 flex-shrink-0 rounded-lg bg-white/5 border border-white/10 text-center py-1">
                       <div className="text-lg font-black leading-none">{new Date(u.date).getDate()}</div>
-                      <div className="text-[10px] text-white/50">{new Date(u.date).toLocaleDateString('ru-RU', { month: 'short' })}</div>
+                      <div className="text-[10px] text-white/50">{new Date(u.date).toLocaleDateString(LOC, { month: 'short' })}</div>
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-bold">{u.title}</div>
@@ -418,7 +680,7 @@ export default function MedCardPage() {
                   <div key={v.name} className="py-3 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold">{v.name}</div>
-                      <div className="text-xs text-white/45">{v.drug} · {new Date(v.date).toLocaleDateString('ru-RU')}{v.until ? ` → до ${new Date(v.until).toLocaleDateString('ru-RU')}` : ''}</div>
+                      <div className="text-xs text-white/45">{v.drug} · {new Date(v.date).toLocaleDateString(LOC)}{v.until ? ` → до ${new Date(v.until).toLocaleDateString(LOC)}` : ''}</div>
                     </div>
                     <span className={`flex-shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border ${st.cls}`}>{st.icon} {st.label}</span>
                   </div>

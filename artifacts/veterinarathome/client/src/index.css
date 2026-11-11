@@ -227,3 +227,53 @@ html { -webkit-tap-highlight-color: transparent; }
   @keyframes screenIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
 }
 @media (prefers-reduced-motion: reduce) { .screen-in { animation: none; } }
+
+/* ═══ Телефон: блоки в сетке не шире экрана (раньше длинное содержимое растягивало карточки за край) ═══ */
+@media (max-width: 767px) {
+  .grid > * { min-width: 0; }
+}
+
+/* ═══ Клавиатура на телефоне: пока печатаете — нижнее меню спрятано, поле над клавиатурой ═══ */
+input, textarea, select { scroll-margin: 96px 0 140px; }
+@media (max-width: 767px) {
+  .kbd-open .tabbar { display: none; }
+  .kbd-open main { padding-bottom: 45vh !important; }
+}
+/* Чат: без лишнего отступа снизу, при открытой клавиатуре — ровно в видимую часть экрана */
+@media (max-width: 767px) {
+  main:has(.chat-screen) { padding-bottom: 0 !important; }
+  .chat-box { padding-bottom: env(safe-area-inset-bottom); }
+  .kbd-open .chat-box { height: calc(var(--vvh, 100dvh) - 64px - env(safe-area-inset-top)) !important; }
+}
+
+/* Окна разделов в мобильном приложении: при открытой клавиатуре — над ней */
+@media (max-width: 767px) {
+  .kbd-open .sheet-wrap { top: var(--vvt, 0px); bottom: auto; height: var(--vvh, 100dvh); align-items: flex-start; padding-top: calc(env(safe-area-inset-top) + 8px); }
+  .kbd-open .sheet { border-radius: 1.5rem; max-height: 100%; }
+}
+
+/* ═══ Объёмные плитки разделов (мобильное приложение) ═══ */
+.tile3d {
+  box-shadow: 0 12px 22px -10px rgba(0,0,0,.6), 0 3px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(0,0,0,.22);
+  transform: translateZ(0);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tile3d:active { transform: translateY(2px) scale(.97); box-shadow: 0 5px 10px -6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.2); filter: brightness(.96); }
+.tile3d-gloss {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 15% -10%, rgba(255,255,255,.45), rgba(255,255,255,0) 55%),
+    linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 40%);
+}
+.tile3d-icon {
+  position: absolute; line-height: 1; pointer-events: none;
+  filter: drop-shadow(0 8px 8px rgba(0,0,0,.35)) drop-shadow(0 2px 2px rgba(0,0,0,.25));
+  transform: rotate(-8deg);
+  animation: tileFloat 4s ease-in-out infinite;
+}
+.tile3d:nth-child(2n) .tile3d-icon { animation-delay: -1.3s; }
+.tile3d:nth-child(3n) .tile3d-icon { animation-delay: -2.6s; }
+@keyframes tileFloat { 0%, 100% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(-4deg) translateY(-3px); } }
+.glass3d { box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 8px 18px -12px rgba(0,0,0,.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+@media (prefers-reduced-motion: reduce) { .tile3d-icon { animation: none; } }

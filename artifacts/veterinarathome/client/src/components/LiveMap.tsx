@@ -219,7 +219,7 @@ export default function LiveMap({ status, vetName, vetPhoto, petName, amount }: 
             <div className="text-sm text-gray-500 mt-1">{petName ? `${petName} в безопасности` : 'Питомец в безопасности'}</div>
             <div className="mt-4 rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
               <div className="text-xs text-[#34A853] font-semibold">✓ Оплата прошла успешно</div>
-              <div className="text-2xl font-black">{amount ? `${amount.toLocaleString('ru-RU')} ₽` : '—'}</div>
+              <div className="text-2xl font-black">{amount ? `${amount.toLocaleString('ru-RU')} ₽` : '—'}</div>
             </div>
           </div>
         </div>

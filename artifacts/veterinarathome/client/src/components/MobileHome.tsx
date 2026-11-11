@@ -51,13 +51,13 @@ export default function MobileHome() {
   const hello = hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
 
   return (
-    <div className="min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] bg-gradient-to-b from-[#5A2F1E] via-[#3B2117] to-[#24150E] text-white px-4 pt-[calc(4.5rem+env(safe-area-inset-top))] pb-4 flex flex-col gap-3">
+    <div className="min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] bg-gradient-to-b from-[#5A2F1E] via-[#3B2117] to-[#24150E] text-white px-4 pt-[calc(4.5rem+env(safe-area-inset-top))] [@media(max-height:700px)]:pt-[calc(4.25rem+env(safe-area-inset-top))] pb-4 flex flex-col gap-3 [@media(max-height:700px)]:gap-2">
       {/* Приветствие */}
       <div>
         <div className="text-[22px] font-black leading-tight">
           {user ? `${hello}, ${user.name.split(' ')[0]} 👋` : 'Ветеринар на дом 🐾'}
         </div>
-        <div className="text-xs text-white/60 mt-0.5">📍 Москва, Кутузовский проспект, 8</div>
+        <div className="text-xs text-white/60 mt-0.5 [@media(max-height:700px)]:hidden">📍 Москва, Кутузовский проспект, 8</div>
       </div>
 
       {/* Личный кабинет */}
@@ -104,11 +104,11 @@ export default function MobileHome() {
       )}
 
       {/* Главное действие */}
-      <Link to="/order" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-500 via-green-600 to-green-800 p-4 active:scale-[0.98] transition-transform">
+      <Link to="/order" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-500 via-green-600 to-green-800 p-4 [@media(max-height:700px)]:p-3.5 active:scale-[0.98] transition-transform">
         <div className="absolute -right-6 -bottom-8 text-[110px] leading-none opacity-20 select-none">🐾</div>
         <div className="relative">
           <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/75">Врач приедет за 15–60 минут</div>
-          <div className="text-2xl font-black mt-1">Вызвать ветеринара</div>
+          <div className="text-2xl [@media(max-height:700px)]:text-xl font-black mt-1">Вызвать ветеринара</div>
           <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white text-green-700 font-black text-sm px-4 py-2">
             🎤 Расскажите, что случилось <span>›</span>
           </div>
@@ -116,11 +116,11 @@ export default function MobileHome() {
       </Link>
 
       {/* Плитки разделов */}
-      <div className="grid grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
         {TILES.map((t) => (
           <Link key={t.label} to={t.auth && !user ? '/login' : t.to}
             className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <span className={`w-[60px] h-[60px] rounded-2xl ${t.bg} ring-1 ${t.ring} flex items-center justify-center text-[26px]`}>{t.icon}</span>
+            <span className={`w-[60px] h-[60px] [@media(max-height:700px)]:w-[52px] [@media(max-height:700px)]:h-[52px] rounded-2xl ${t.bg} ring-1 ${t.ring} flex items-center justify-center text-[26px] [@media(max-height:700px)]:text-[23px]`}>{t.icon}</span>
             <span className="text-[11px] font-semibold text-white/85 text-center leading-tight">{t.label}</span>
           </Link>
         ))}
@@ -158,7 +158,7 @@ export default function MobileHome() {
             {user ? `${(bonus ?? 0).toLocaleString('ru-RU')} бонусов` : '500 бонусов в подарок'}
           </div>
           <div className="text-[11px] opacity-75">
-            {user ? 'Оплачивайте до 30% визита · пригласите друга +500' : 'За регистрацию · 1 бонус = 1 ₽'}
+            {user ? 'Оплачивайте до 30% визита · пригласите друга +500' : 'За регистрацию · 1 бонус = 1 ₽'}
           </div>
         </div>
         <span className="font-black">›</span>

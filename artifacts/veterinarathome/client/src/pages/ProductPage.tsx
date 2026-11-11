@@ -1,5 +1,7 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import MobileHub, { useIsMobile } from '../components/MobileHub';
 import { getProduct, getLoyalty, buyProduct } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Product, ProductImage, rub, bon, mainVariantIndex } from './ShopPage';
@@ -37,6 +39,7 @@ export default function ProductPage() {
   const [img, setImg] = useState(0);
   const [qty, setQty] = useState(1);
   const [vi, setVi] = useState(0);
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<'desc' | 'comp' | 'analysis' | 'prod' | 'specs' | 'rev'>('desc');
   const [balance, setBalance] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,47 +68,103 @@ export default function ProductPage() {
     } finally { setBusy(false); }
   };
 
-  return (
-    <div className="min-h-screen bg-milk text-coffee-900 pt-24 md:pt-[156px] pb-20 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-sm text-coffee-500 mb-5">
-          <Link to="/shop" className="hover:text-coffee-800">Магазин</Link> <span className="mx-1">/</span>
-          <span>{p.category}</span> <span className="mx-1">/</span> <span className="text-coffee-800">{p.brand}</span>
-        </div>
-
-        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
-          {/* Галерея */}
-          <div className="flex gap-3">
-            <div className="flex flex-col gap-2">
-              {p.images.map((s, i) => (
-                <button key={i} onClick={() => setImg(i)}
-                  className={`w-16 h-20 rounded-xl overflow-hidden border-2 ${img === i ? 'border-green-500' : 'border-transparent opacity-70 hover:opacity-100'}`}>
-                  <ProductImage p={p} src={s} size="sm" />
-                </button>
-              ))}
-            </div>
-            <div className="relative flex-1 aspect-[4/5] rounded-3xl overflow-hidden bg-white border border-coffee-200/70">
-              <ProductImage p={p.pack && unit.label ? { ...p, pack: { ...p.pack, weight: unit.label } } : p} src={p.images[img]} size="lg" />
-              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                {p.badges.map((b) => <span key={b} className="px-2.5 py-1 rounded-lg bg-white/95 text-coffee-800 text-xs font-bold shadow">{b}</span>)}
+  // ── Блоки страницы: на компьютере — как раньше, на телефоне — по иконкам ──
+  const tab_desc = (<>
+              <div className="space-y-6">
+                {p.feed && (
+                  <div className="rounded-2xl bg-green-50 border border-green-200 px-5 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-green-700">Для кого</div>
+                    <div className="font-semibold mt-1">{p.feed.forWhom}</div>
+                  </div>
+                )}
+                <p className="leading-relaxed text-coffee-700">{p.description}</p>
+                {p.feed && (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {p.feed.benefits.map((b) => (
+                      <div key={b.title} className="rounded-2xl bg-cream border border-coffee-200/70 p-4">
+                        <div className="text-2xl">{b.icon}</div>
+                        <div className="font-black mt-2">{b.title}</div>
+                        <div className="text-sm text-coffee-600">{b.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-
-          {/* Информация и покупка */}
-          <div>
-            <div className="text-sm font-semibold text-green-700">{p.brand}</div>
-            <h1 className="text-2xl md:text-3xl font-black leading-tight mt-1">{p.title}</h1>
-            <div className="text-coffee-500 mt-1">{p.subtitle}</div>
-            <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
-              <span className="font-bold">⭐ {p.rating}</span>
-              <button onClick={() => setTab('rev')} className="text-coffee-600 underline underline-offset-2">{p.reviews.toLocaleString('ru-RU')} отзывов</button>
-              <span className="text-coffee-500">Купили {p.sold.toLocaleString('ru-RU')} раз</span>
-            </div>
-
+  </>);
+  const tab_comp = (<>
+              <div className="space-y-5">
+                {p.feed && (
+                  <div className="rounded-2xl bg-[#FBF6EF] border border-amber-200 p-5">
+                    <div className="font-black mb-1">🌾 Злаки и углеводы</div>
+                    <p className="text-coffee-700 leading-relaxed">{p.feed.grains}</p>
+                  </div>
+                )}
+                <div>
+                  <div className="font-black mb-1">Полный состав</div>
+                  <p className="leading-relaxed text-coffee-700">{p.composition}</p>
+                </div>
+              </div>
+  </>);
+  const tab_analysis = (<>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <div className="font-black mb-2">Гарантированный анализ</div>
+                  <dl className="rounded-2xl bg-cream border border-coffee-200/70 divide-y divide-coffee-200/70">
+                    {p.feed!.analysis.map(([k, v]) => (
+                      <div key={k} className="flex justify-between px-4 py-2.5 text-sm"><dt className="text-coffee-600">{k}</dt><dd className="font-bold">{v}</dd></div>
+                    ))}
+                  </dl>
+                </div>
+                <div>
+                  <div className="font-black mb-2">Суточная норма кормления</div>
+                  <table className="w-full rounded-2xl overflow-hidden bg-cream border border-coffee-200/70 text-sm">
+                    <thead><tr className="bg-green-600 text-white">{p.feed!.feeding.head.map((h) => <th key={h} className="text-left px-4 py-2.5 font-bold">{h}</th>)}</tr></thead>
+                    <tbody>{p.feed!.feeding.rows.map(([a, b]) => <tr key={a} className="border-t border-coffee-200/70"><td className="px-4 py-2.5">{a}</td><td className="px-4 py-2.5 font-bold">{b}</td></tr>)}</tbody>
+                  </table>
+                  <p className="text-xs text-coffee-500 mt-2">Норма зависит от активности. Разделите на 2 кормления, свежая вода всегда в доступе. Точную норму подскажет ветеринар ВетДом по медкарте.</p>
+                </div>
+              </div>
+  </>);
+  const tab_prod = (<>
+              <div>
+                <p className="text-coffee-700 mb-5 max-w-2xl">«ВетДом Натурал» — корма, которые делают ветеринары. Мы видим здоровье тысяч питомцев на приёмах и знаем, что питание — основа профилактики. Вот как устроено наше производство:</p>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {PRODUCTION.map((st) => (
+                    <div key={st.n} className="flex gap-4 rounded-2xl bg-cream border border-coffee-200/70 p-4">
+                      <span className="text-2xl font-black text-green-600 leading-none">{st.n}</span>
+                      <div><div className="font-black">{st.t}</div><div className="text-sm text-coffee-600 mt-1">{st.d}</div></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+  </>);
+  const tab_specs = (<>
+              <dl className="divide-y divide-coffee-200/70">
+                {p.specs.map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-6 py-2.5 text-sm"><dt className="text-coffee-500">{k}</dt><dd className="font-semibold text-right">{v}</dd></div>
+                ))}
+              </dl>
+  </>);
+  const tab_rev = (<>
+              <div className="space-y-4">
+                {reviews.map((r) => (
+                  <div key={r.name} className="rounded-2xl bg-cream border border-coffee-200/70 p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500 text-white font-bold flex items-center justify-center">{r.name[0]}</div>
+                        <div><div className="font-bold text-sm">{r.name}</div><div className="text-xs text-coffee-500">{r.pet}</div></div>
+                      </div>
+                      <div className="text-right"><div className="text-amber-500">{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</div><div className="text-[11px] text-coffee-400">{r.date}</div></div>
+                    </div>
+                    <p className="text-sm text-coffee-700 mt-3">{r.text}</p>
+                  </div>
+                ))}
+              </div>
+  </>);
+  const buyPanel = (<>
             <div className="mt-6 rounded-3xl bg-cream border border-coffee-200/70 p-5 shadow-sm">
               <div className="flex items-end gap-3">
-                <span className="text-4xl font-black">{rub(unit.price * qty)}</span>
+                <span className="text-3xl md:text-4xl font-black whitespace-nowrap">{rub(unit.price * qty)}</span>
                 {unit.oldPrice && <span className="text-lg text-coffee-400 line-through mb-1">{rub(unit.oldPrice * qty)}</span>}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -139,7 +198,7 @@ export default function ProductPage() {
                   <span className="w-8 text-center font-bold">{qty}</span>
                   <button onClick={() => setQty(Math.min(20, qty + 1))} className="w-10 h-11 text-xl font-bold text-coffee-600" aria-label="Больше">+</button>
                 </div>
-                <button onClick={() => buy('rub')} disabled={busy} className="flex-1 btn-gold py-3.5 text-base">Купить за {rub(unit.price * qty)}</button>
+                <button onClick={() => buy('rub')} disabled={busy} className="flex-1 btn-gold py-3.5 px-3 text-[15px] md:text-base whitespace-nowrap">Купить за {rub(unit.price * qty)}</button>
               </div>
               <button onClick={() => buy('bonus')} disabled={busy || (user !== null && balance !== null && !enoughBonus)}
                 className="mt-3 w-full rounded-xl bg-[#FACC15] hover:bg-[#FDE047] disabled:opacity-50 text-coffee-950 font-black py-3.5 transition-colors">
@@ -147,120 +206,13 @@ export default function ProductPage() {
               </button>
               {err && <p className="text-sm text-red-600 mt-2">{err}</p>}
 
-              <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
+              <div className="hidden md:grid mt-5 grid-cols-2 gap-3 text-xs">
                 <div className="rounded-xl bg-white/70 p-3"><b className="block text-sm">🚚 Завтра</b>Курьер или врач привезёт при визите</div>
                 <div className="rounded-xl bg-white/70 p-3"><b className="block text-sm">✨ +{Math.round(unit.price * qty * 0.05)} Б</b>кешбэк при оплате рублями</div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Вкладки */}
-        <div className="mt-10">
-          <div className="flex gap-1 border-b border-coffee-200 overflow-x-auto">
-            {([['desc', p.feed ? 'О корме' : 'Описание'], ...(p.composition ? [['comp', p.feed ? 'Состав и злаки' : 'Состав']] : []),
-              ...(p.feed ? [['analysis', 'Анализ и нормы'], ['prod', 'Как мы производим']] : []), ['specs', 'Характеристики'], ['rev', `Отзывы · ${p.reviews.toLocaleString('ru-RU')}`]] as [typeof tab, string][]).map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)}
-                className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 -mb-px ${tab === k ? 'border-green-600 text-coffee-900' : 'border-transparent text-coffee-500 hover:text-coffee-800'}`}>{l}</button>
-            ))}
-          </div>
-          <div className="py-6 max-w-4xl">
-            {tab === 'desc' && (
-              <div className="space-y-6">
-                {p.feed && (
-                  <div className="rounded-2xl bg-green-50 border border-green-200 px-5 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wider text-green-700">Для кого</div>
-                    <div className="font-semibold mt-1">{p.feed.forWhom}</div>
-                  </div>
-                )}
-                <p className="leading-relaxed text-coffee-700">{p.description}</p>
-                {p.feed && (
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {p.feed.benefits.map((b) => (
-                      <div key={b.title} className="rounded-2xl bg-cream border border-coffee-200/70 p-4">
-                        <div className="text-2xl">{b.icon}</div>
-                        <div className="font-black mt-2">{b.title}</div>
-                        <div className="text-sm text-coffee-600">{b.text}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {tab === 'comp' && (
-              <div className="space-y-5">
-                {p.feed && (
-                  <div className="rounded-2xl bg-[#FBF6EF] border border-amber-200 p-5">
-                    <div className="font-black mb-1">🌾 Злаки и углеводы</div>
-                    <p className="text-coffee-700 leading-relaxed">{p.feed.grains}</p>
-                  </div>
-                )}
-                <div>
-                  <div className="font-black mb-1">Полный состав</div>
-                  <p className="leading-relaxed text-coffee-700">{p.composition}</p>
-                </div>
-              </div>
-            )}
-            {tab === 'analysis' && p.feed && (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <div className="font-black mb-2">Гарантированный анализ</div>
-                  <dl className="rounded-2xl bg-cream border border-coffee-200/70 divide-y divide-coffee-200/70">
-                    {p.feed.analysis.map(([k, v]) => (
-                      <div key={k} className="flex justify-between px-4 py-2.5 text-sm"><dt className="text-coffee-600">{k}</dt><dd className="font-bold">{v}</dd></div>
-                    ))}
-                  </dl>
-                </div>
-                <div>
-                  <div className="font-black mb-2">Суточная норма кормления</div>
-                  <table className="w-full rounded-2xl overflow-hidden bg-cream border border-coffee-200/70 text-sm">
-                    <thead><tr className="bg-green-600 text-white">{p.feed.feeding.head.map((h) => <th key={h} className="text-left px-4 py-2.5 font-bold">{h}</th>)}</tr></thead>
-                    <tbody>{p.feed.feeding.rows.map(([a, b]) => <tr key={a} className="border-t border-coffee-200/70"><td className="px-4 py-2.5">{a}</td><td className="px-4 py-2.5 font-bold">{b}</td></tr>)}</tbody>
-                  </table>
-                  <p className="text-xs text-coffee-500 mt-2">Норма зависит от активности. Разделите на 2 кормления, свежая вода всегда в доступе. Точную норму подскажет ветеринар ВетДом по медкарте.</p>
-                </div>
-              </div>
-            )}
-            {tab === 'prod' && (
-              <div>
-                <p className="text-coffee-700 mb-5 max-w-2xl">«ВетДом Натурал» — корма, которые делают ветеринары. Мы видим здоровье тысяч питомцев на приёмах и знаем, что питание — основа профилактики. Вот как устроено наше производство:</p>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {PRODUCTION.map((st) => (
-                    <div key={st.n} className="flex gap-4 rounded-2xl bg-cream border border-coffee-200/70 p-4">
-                      <span className="text-2xl font-black text-green-600 leading-none">{st.n}</span>
-                      <div><div className="font-black">{st.t}</div><div className="text-sm text-coffee-600 mt-1">{st.d}</div></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {tab === 'specs' && (
-              <dl className="divide-y divide-coffee-200/70">
-                {p.specs.map(([k, v]) => (
-                  <div key={k} className="flex justify-between gap-6 py-2.5 text-sm"><dt className="text-coffee-500">{k}</dt><dd className="font-semibold text-right">{v}</dd></div>
-                ))}
-              </dl>
-            )}
-            {tab === 'rev' && (
-              <div className="space-y-4">
-                {reviews.map((r) => (
-                  <div key={r.name} className="rounded-2xl bg-cream border border-coffee-200/70 p-5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-500 text-white font-bold flex items-center justify-center">{r.name[0]}</div>
-                        <div><div className="font-bold text-sm">{r.name}</div><div className="text-xs text-coffee-500">{r.pet}</div></div>
-                      </div>
-                      <div className="text-right"><div className="text-amber-500">{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</div><div className="text-[11px] text-coffee-400">{r.date}</div></div>
-                    </div>
-                    <p className="text-sm text-coffee-700 mt-3">{r.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
+  </>);
+  const doneModal = (<>
       {done && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setDone(null)}>
           <div className="w-full max-w-sm rounded-3xl bg-cream p-7 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -279,6 +231,113 @@ export default function ProductPage() {
           </div>
         </div>
       )}
+  </>);
+
+  if (isMobile) {
+    const has: Record<string, boolean> = { desc: true, comp: !!p.composition, analysis: !!p.feed, prod: !!p.feed, specs: true, rev: true };
+    const T = (k: string, label: string, icon: string, tone: 'green' | 'yellow' | 'amber' | 'sky' | 'red' | 'purple' | 'white', content: React.ReactNode, title?: string) =>
+      has[k] ? [{ k, label, icon, tone, content: <div className="pb-2">{content}</div>, title }] : [];
+    return (
+      <MobileHub light cols={3}
+        header={<>
+          <div className="rounded-3xl bg-white border border-coffee-200/70 p-3 flex gap-3">
+            <div className="w-[104px] h-[128px] rounded-2xl overflow-hidden flex-shrink-0 bg-white">
+              <ProductImage p={p.pack && unit.label ? { ...p, pack: { ...p.pack, weight: unit.label } } : p} src={p.images[img]} size="sm" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-green-700">{p.brand}</div>
+              <h1 className="text-[17px] font-black leading-tight mt-0.5">{p.title}</h1>
+              <div className="text-[12px] text-coffee-500 mt-1 leading-snug">{p.subtitle}</div>
+              <div className="text-[12px] mt-1.5"><b>⭐ {p.rating}</b> <span className="text-coffee-500">· {p.reviews.toLocaleString('ru-RU')} отзывов</span></div>
+            </div>
+          </div>
+          <div className="-mt-6">{buyPanel}</div>
+        </>}
+        tiles={[
+          ...T('desc', p.feed ? 'О корме' : 'Описание', '📖', 'green', tab_desc),
+          ...T('comp', 'Состав', '🥩', 'amber', tab_comp, p.feed ? 'Состав и злаки' : 'Состав'),
+          ...T('analysis', 'Анализ', '🔬', 'sky', tab_analysis, 'Анализ и нормы'),
+          ...T('prod', 'Производство', '🏭', 'purple', tab_prod, 'Как мы производим'),
+          ...T('specs', 'Детали', '📋', 'white', tab_specs, 'Характеристики'),
+          ...T('rev', 'Отзывы', '⭐', 'yellow', tab_rev, `Отзывы · ${p.reviews.toLocaleString('ru-RU')}`),
+          { k: 'photos', label: 'Фото', icon: '🖼️', tone: 'white' as const, title: 'Фотографии', content: (
+            <div className="grid grid-cols-2 gap-2 pb-2">
+              {p.images.map((src, i) => (
+                <button key={i} onClick={() => setImg(i)} className={`aspect-[4/5] rounded-2xl overflow-hidden border-2 ${img === i ? 'border-green-500' : 'border-transparent'}`}>
+                  <ProductImage p={p} src={src} size="sm" />
+                </button>
+              ))}
+            </div>
+          ) },
+        ]}
+        footer={doneModal}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-milk text-coffee-900 pt-24 md:pt-[156px] pb-20 px-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-sm text-coffee-500 mb-5">
+          <Link to="/shop" className="hover:text-coffee-800">Магазин</Link> <span className="mx-1">/</span>
+          <span>{p.category}</span> <span className="mx-1">/</span> <span className="text-coffee-800">{p.brand}</span>
+        </div>
+
+        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
+          {/* Галерея */}
+          <div className="flex flex-col-reverse md:flex-row gap-3">
+            <div className="flex flex-row md:flex-col gap-2">
+              {p.images.map((s, i) => (
+                <button key={i} onClick={() => setImg(i)}
+                  className={`w-16 h-20 rounded-xl overflow-hidden border-2 ${img === i ? 'border-green-500' : 'border-transparent opacity-70 hover:opacity-100'}`}>
+                  <ProductImage p={p} src={s} size="sm" />
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full md:flex-1 aspect-[4/5] rounded-3xl overflow-hidden bg-white border border-coffee-200/70">
+              <ProductImage p={p.pack && unit.label ? { ...p, pack: { ...p.pack, weight: unit.label } } : p} src={p.images[img]} size="lg" />
+              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                {p.badges.map((b) => <span key={b} className="px-2.5 py-1 rounded-lg bg-white/95 text-coffee-800 text-xs font-bold shadow">{b}</span>)}
+              </div>
+            </div>
+          </div>
+
+          {/* Информация и покупка */}
+          <div>
+            <div className="text-sm font-semibold text-green-700">{p.brand}</div>
+            <h1 className="text-2xl md:text-3xl font-black leading-tight mt-1">{p.title}</h1>
+            <div className="text-coffee-500 mt-1">{p.subtitle}</div>
+            <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
+              <span className="font-bold">⭐ {p.rating}</span>
+              <button onClick={() => setTab('rev')} className="text-coffee-600 underline underline-offset-2">{p.reviews.toLocaleString('ru-RU')} отзывов</button>
+              <span className="text-coffee-500">Купили {p.sold.toLocaleString('ru-RU')} раз</span>
+            </div>
+
+            {buyPanel}
+          </div>
+        </div>
+
+        {/* Вкладки */}
+        <div className="mt-10">
+          <div data-tabs className="flex flex-wrap md:flex-nowrap gap-1 border-b border-coffee-200 md:overflow-x-auto">
+            {([['desc', p.feed ? 'О корме' : 'Описание'], ...(p.composition ? [['comp', p.feed ? 'Состав и злаки' : 'Состав']] : []),
+              ...(p.feed ? [['analysis', 'Анализ и нормы'], ['prod', 'Как мы производим']] : []), ['specs', 'Характеристики'], ['rev', `Отзывы · ${p.reviews.toLocaleString('ru-RU')}`]] as [typeof tab, string][]).map(([k, l]) => (
+              <button key={k} onClick={() => setTab(k)}
+                className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 -mb-px ${tab === k ? 'border-green-600 text-coffee-900' : 'border-transparent text-coffee-500 hover:text-coffee-800'}`}>{l}</button>
+            ))}
+          </div>
+          <div className="py-6 max-w-4xl">
+            {tab === 'desc' && tab_desc}
+            {tab === 'comp' && tab_comp}
+            {tab === 'analysis' && p.feed && tab_analysis}
+            {tab === 'prod' && tab_prod}
+            {tab === 'specs' && tab_specs}
+            {tab === 'rev' && tab_rev}
+          </div>
+        </div>
+      </div>
+
+      {doneModal}
     </div>
   );
 }

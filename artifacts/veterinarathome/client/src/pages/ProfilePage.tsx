@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LOC } from '../utils/domTranslate';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getPets, createPet, deletePet, getOrders, getLoyalty, getMe } from '../api';
@@ -6,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { getSvcName } from '../utils/serviceNames';
 import ServiceIcon from '../components/ServiceIcon';
 import AnimatedNumber from '../components/AnimatedNumber';
+import MobileHub, { HubStats, useIsMobile } from '../components/MobileHub';
+import ClientSettings from '../components/ClientSettings';
 import i18n from '../i18n';
 
 interface Pet { id: number; name: string; species: string; breed?: string; age_years?: number; weight_kg?: number; notes?: string; passport_id?: string; photo_url?: string; }
@@ -120,6 +123,7 @@ export default function ProfilePage() {
   const [loy, setLoy] = useState<LoyaltyData | null>(null);
   const [avatar, setAvatar] = useState<string | undefined>(user?.avatar_url);
   const [refCopied, setRefCopied] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     getPets().then(setPets).catch(()=>{});
@@ -208,78 +212,8 @@ export default function ProfilePage() {
     { icon:'💎', label:'Медкарта',   desc:'Полное досье',      done: pets.length >= 2 },
   ];
 
-  return (
-    <div className="min-h-screen bg-[#1F150E]">
-
-      {/* ══════════════════════ HERO HEADER ══════════════════════ */}
-      <div className="relative overflow-hidden" style={{ background:'linear-gradient(180deg,rgba(42,29,20,1) 0%,rgba(31,21,14,1) 100%)' }}>
-        {/* grid bg */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage:'linear-gradient(rgba(124,184,66,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,184,66,0.04) 1px,transparent 1px)',
-          backgroundSize:'48px 48px'
-        }}/>
-        {/* radial glow behind avatar */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 rounded-full pointer-events-none"
-          style={{ background:'radial-gradient(ellipse,rgba(124,184,66,0.12) 0%,transparent 70%)' }}/>
-
-        <div className="relative max-w-5xl mx-auto px-4 pt-24 md:pt-[156px] pb-10">
-          {/* logout top-right */}
-          <button onClick={logout}
-            className="absolute top-20 md:top-[160px] right-4 text-xs text-red-400/40 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg"
-            style={{ border:'1px solid rgba(248,113,113,0.1)' }}>
-            {t('profile.logout')}
-          </button>
-
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              {avatar ? (
-                <img src={avatar} alt={user?.name} className="w-28 h-28 rounded-2xl object-cover"
-                  style={{ border:'3px solid rgba(124,184,66,0.5)', boxShadow:'0 0 40px rgba(124,184,66,0.25)' }} />
-              ) : (
-                <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-black text-green-400"
-                  style={{ background:'rgba(124,184,66,0.1)', border:'2px solid rgba(124,184,66,0.3)', boxShadow:'0 0 40px rgba(124,184,66,0.15)' }}>
-                  {initials}
-                </div>
-              )}
-              {/* online dot */}
-              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-400 border-2 border-[#1F150E] flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-[#1F150E]"/>
-              </span>
-            </div>
-
-            {/* User info */}
-            <div className="text-center sm:text-left flex-1">
-              <div className="flex items-center gap-3 justify-center sm:justify-start mb-1">
-                <h1 className="text-2xl font-black text-white">{user?.name}</h1>
-                {/* loyalty badge */}
-                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full"
-                  style={{ color: loyalty.color, background:`${loyalty.glow}20`, border:`1px solid ${loyalty.glow}` }}>
-                  {loyalty.label}
-                </span>
-              </div>
-              <p className="text-white/40 text-sm mb-0.5">{user?.phone}</p>
-              {user?.email && <p className="text-white/25 text-xs">{user.email}</p>}
-              <p className="text-white/20 text-xs mt-1">Клиент с {memberYear} года</p>
-            </div>
-
-            {/* Stats strip */}
-            <div className="flex gap-6 sm:gap-8 text-center">
-              {[
-                { val: String(orders.length),           label:'Заказов' },
-                { val: String(completedOrders.length),  label:'Выполнено' },
-                { val: String(pets.length),             label:'Питомцев' },
-              ].map(s => (
-                <div key={s.label}>
-                  <AnimatedNumber value={s.val} className="text-2xl font-black text-white block" duration={1600}/>
-                  <span className="text-white/30 text-[10px] uppercase tracking-widest">{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ══ Программа лояльности ══ */}
-          <div className="mt-8 grid lg:grid-cols-[1.1fr_1fr] gap-4">
+  // ── Блоки страницы: на компьютере — как раньше, на телефоне — в окнах по иконкам ──
+  const bonusCard = (<>
             {/* Карта бонусов */}
             <div className="relative overflow-hidden rounded-3xl p-6 md:p-7 bg-gradient-to-br from-[#5A4331] via-[#3B2A1E] to-[#241911] border border-amber-300/25 shadow-2xl shadow-black/30">
               <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full blur-3xl pointer-events-none" style={{ background: tier.glow }} />
@@ -292,7 +226,7 @@ export default function ProfilePage() {
                 <div className="text-right">
                   <div className="text-white/60 text-xs">Бонусов на счёте</div>
                   <div className="text-4xl font-black text-white leading-none mt-1"><AnimatedNumber value={String(bonusBalance)} duration={1600} className="inline" /></div>
-                  <div className="text-xs text-amber-200/70 mt-1">= {bonusBalance.toLocaleString('ru-RU')} ₽ скидки</div>
+                  <div className="text-xs text-amber-200/70 mt-1 whitespace-nowrap">= {bonusBalance.toLocaleString('ru-RU')} ₽ скидки</div>
                 </div>
               </div>
 
@@ -302,26 +236,29 @@ export default function ProfilePage() {
               </div>
               <div className="relative rounded-2xl bg-[#FACC15] text-[#1E140D] px-4 py-3 mb-5 flex items-center gap-3 font-bold">
                 <span className="text-2xl">💳</span>
-                <span className="text-sm leading-snug">Бонусами можно оплатить <span className="text-lg font-black">до 30%</span> стоимости любого визита. 1 бонус = 1 ₽</span>
+                <span className="text-sm leading-snug">Бонусами можно оплатить <span className="text-lg font-black">до 30%</span> стоимости любого визита. 1 бонус = 1 ₽</span>
               </div>
 
               {nextTier ? (
                 <div className="relative">
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-white/70">До статуса «{nextTier.name}»</span>
-                    <span className="text-white font-bold">{(nextTier.from - spent).toLocaleString('ru-RU')} ₽</span>
+                    <span className="text-white font-bold">{(nextTier.from - spent).toLocaleString('ru-RU')} ₽</span>
                   </div>
                   <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-1000"
                       style={{ width: `${Math.min(100, ((spent - tier.from) / (nextTier.from - tier.from)) * 100)}%`, background: `linear-gradient(90deg, ${tier.color}, ${nextTier.color})` }} />
                   </div>
-                  <div className="text-[11px] text-white/50 mt-1.5">Потрачено на визиты: {spent.toLocaleString('ru-RU')} ₽</div>
+                  <div className="text-[11px] text-white/50 mt-1.5">Потрачено на визиты: {spent.toLocaleString('ru-RU')} ₽</div>
                 </div>
               ) : (
                 <div className="relative text-sm text-white/80">Вы на высшем уровне — спасибо, что вы с нами!</div>
               )}
             </div>
 
+
+  </>);
+  const tiersCard = (<>
             {/* Уровни + начисления */}
             <div className="rounded-3xl p-6 bg-white/[0.03] border border-white/10">
               <div className="text-sm font-bold text-white mb-3">Уровни программы</div>
@@ -333,9 +270,9 @@ export default function ProfilePage() {
                       <span className="text-xl">{tr.icon}</span>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold" style={{ color: active ? tr.color : 'rgba(255,255,255,0.85)' }}>
-                          {tr.name} <span className="text-white/40 font-normal text-xs">· {tr.from ? `от ${tr.from.toLocaleString('ru-RU')} ₽` : 'с первого визита'}</span>
+                          {tr.name} <span className="text-white/40 font-normal text-xs">· {tr.from ? `от ${tr.from.toLocaleString('ru-RU')} ₽` : 'с первого визита'}</span>
                         </div>
-                        <div className="text-xs text-white/50 truncate">{tr.perks}</div>
+                        <div className="text-xs text-white/50 leading-snug">{tr.perks}</div>
                       </div>
                       <span className="text-sm font-black text-green-400">{tr.rate}%</span>
                     </div>
@@ -346,14 +283,15 @@ export default function ProfilePage() {
               <ul className="space-y-1.5 text-sm">
                 {accruals.slice(0, 4).map((a, i) => (
                   <li key={i} className="flex justify-between gap-3">
-                    <span className="text-white/60 truncate">{a.label}</span>
+                    <span className="text-white/60 leading-snug">{a.label}</span>
                     <span className="font-bold text-green-400 whitespace-nowrap">+{a.amount.toLocaleString('ru-RU')}</span>
                   </li>
                 ))}
               </ul>
             </div>
-          </div>
 
+  </>);
+  const referral = (<>
           {/* ══ Реферальная программа ══ */}
           <div className="mt-4 rounded-3xl p-6 md:p-7 bg-gradient-to-br from-green-600/25 via-green-800/10 to-transparent border border-green-400/30">
             <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 items-start">
@@ -396,8 +334,8 @@ export default function ProfilePage() {
                       <li key={f.name + f.joined} className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-green-500/20 border border-green-400/30 flex items-center justify-center text-sm font-black text-green-300">{f.name[0]}</div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-white truncate">{f.name}</div>
-                          <div className="text-[11px] text-white/45">с {new Date(f.joined).toLocaleDateString('ru-RU')} · визитов: {f.visits}</div>
+                          <div className="text-sm font-semibold text-white leading-snug">{f.name}</div>
+                          <div className="text-[11px] text-white/45">с {new Date(f.joined).toLocaleDateString(LOC)} · визитов: {f.visits}</div>
                         </div>
                         <span className="text-sm font-black text-green-300">+{f.earned.toLocaleString('ru-RU')}</span>
                       </li>
@@ -407,62 +345,9 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ══════════════════════ ACTIVE ORDER ══════════════════════ */}
-      {latestActive && (
-        <div className="max-w-5xl mx-auto px-4 -mt-1 mb-6">
-          <div className="relative rounded-2xl overflow-hidden" style={{ background:'linear-gradient(135deg,rgba(124,184,66,0.1),rgba(94,158,44,0.05))', border:'1.5px solid rgba(124,184,66,0.3)', boxShadow:'0 0 32px rgba(124,184,66,0.1)' }}>
-            <div className="flex items-center justify-between gap-4 px-6 py-5">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <div className="w-11 h-11 rounded-full bg-green-400/15 border border-green-400/30 flex items-center justify-center text-green-400">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  </div>
-                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-[#1F150E]" style={{ animation:'ping-dot 1.5s ease-in-out infinite' }}/>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black tracking-[0.2em] uppercase text-green-400/60">{t('profile.activeOrder.badge')}</span>
-                  <p className="text-white font-bold">{getSvcName(latestActive.service_name||'', lang)}</p>
-                  <p className="text-white/40 text-xs">Заказ #{latestActive.id}{latestActive.pet_name?` · ${latestActive.pet_name}`:''}</p>
-                </div>
-              </div>
-              <Link to={`/order/${latestActive.id}`}
-                className="flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-105"
-                style={{ background:'rgba(124,184,66,0.15)', border:'1px solid rgba(124,184,66,0.4)', color:'rgba(124,184,66,0.95)' }}>
-                Отслеживать
-              </Link>
-            </div>
-          </div>
-          <style>{`@keyframes ping-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:0.4}}`}</style>
-        </div>
-      )}
-
-      {/* ══════════════════════ MAIN CONTENT ══════════════════════ */}
-      <div className="max-w-5xl mx-auto px-4 pb-24">
-
-        {/* ── Tab nav ─────────────────────────────────────────── */}
-        <div className="flex gap-1 mb-8 overflow-x-auto pb-1" style={{ scrollbarWidth:'none' }}>
-          {([
-            { id:'pets',    label:'Питомцы' },
-            { id:'actions', label:'Действия' },
-            { id:'orders',  label:'История' },
-            { id:'recs',    label:'Рекомендации' },
-            { id:'news',    label:'Новости' },
-          ] as { id: typeof SECTIONS[number]; label: string }[]).map(tab => (
-            <button key={tab.id} onClick={()=>setActiveSection(tab.id)}
-              className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-200"
-              style={activeSection===tab.id
-                ? { background:'rgba(124,184,66,0.12)', border:'1px solid rgba(124,184,66,0.3)', color:'rgba(124,184,66,1)' }
-                : { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)' }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ══ SECTION: PETS ══════════════════════════════════════ */}
-        {activeSection === 'pets' && (
+  </>);
+  const petsBlock = (<>
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -596,10 +481,8 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* ══ SECTION: QUICK ACTIONS ═════════════════════════════ */}
-        {activeSection === 'actions' && (
+  </>);
+  const actionsBlock = (<>
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-5 h-px bg-amber-400"/>
@@ -619,31 +502,11 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* User card */}
-            <div className="rounded-2xl p-5 mt-2" style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-white/30 text-xs uppercase tracking-widest mb-4">Аккаунт</p>
-              <div className="space-y-3">
-                {[
-                  { label:'Имя', val: user?.name },
-                  { label:'Телефон', val: user?.phone },
-                  { label:'Email', val: user?.email || '—' },
-                ].map(row => (
-                  <div key={row.label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <span className="text-white/30 text-xs">{row.label}</span>
-                    <span className="text-white/70 text-sm font-medium">{row.val}</span>
-                  </div>
-                ))}
-              </div>
-              <button onClick={logout} className="mt-4 w-full py-2.5 rounded-xl text-sm font-bold text-red-400/70 hover:text-red-400 transition-colors"
-                style={{ border:'1px solid rgba(248,113,113,0.15)' }}>
-                {t('profile.logout')}
-              </button>
-            </div>
+            {/* Настройки аккаунта */}
+            <div className="max-w-xl"><ClientSettings onAvatar={setAvatar} /></div>
           </div>
-        )}
-
-        {/* ══ SECTION: ORDER HISTORY ═════════════════════════════ */}
-        {activeSection === 'orders' && (
+  </>);
+  const ordersBlock = (<>
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-5 h-px bg-amber-400"/>
@@ -671,11 +534,11 @@ export default function ProfilePage() {
                       <ServiceIcon name={o.service_name} size={18}/>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-bold text-sm truncate">{getSvcName(o.service_name||'', lang)}</p>
+                      <p className="text-white font-bold text-sm leading-snug">{getSvcName(o.service_name||'', lang)}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {o.pet_name && <span className="text-white/30 text-xs">{o.pet_name}</span>}
                         {o.pet_name && <span className="text-white/15 text-xs">·</span>}
-                        <span className="text-white/20 text-xs">{new Date(o.created_at).toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'})}</span>
+                        <span className="text-white/20 text-xs">{new Date(o.created_at).toLocaleDateString(LOC,{day:'numeric',month:'short',year:'numeric'})}</span>
                       </div>
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border flex-shrink-0 ${STATUS_COLOR[o.status]||STATUS_COLOR.completed}`}>
@@ -692,10 +555,8 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-        )}
-
-        {/* ══ SECTION: RECOMMENDATIONS ═══════════════════════════ */}
-        {activeSection === 'recs' && (
+  </>);
+  const recsBlock = (<>
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-5 h-px bg-amber-400"/>
@@ -740,10 +601,8 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* ══ SECTION: NEWS ══════════════════════════════════════ */}
-        {activeSection === 'news' && (
+  </>);
+  const newsBlock = (<>
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-5 h-px bg-amber-400"/>
@@ -764,7 +623,197 @@ export default function ProfilePage() {
               ))}
             </div>
           </div>
-        )}
+  </>);
+
+  if (isMobile) {
+    return (
+      <MobileHub
+        header={<>
+          <div className="flex items-center gap-3 rounded-3xl bg-white/[0.07] border border-white/10 p-3">
+            {avatar
+              ? <img src={avatar} alt="" className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" style={{ border: `2px solid ${tier.color}` }} />
+              : <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-green-400 bg-green-400/10 border border-green-400/30 flex-shrink-0">{initials}</div>}
+            <div className="flex-1 min-w-0">
+              <div className="font-black text-lg leading-tight">{user?.name}</div>
+              <div className="text-xs font-bold mt-0.5" style={{ color: tier.color }}>{tier.icon} {tier.name} · {tier.rate}% бонусами</div>
+              <div className="text-[11px] text-white/45">{user?.phone}</div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-[10px] uppercase text-white/50">Бонусы</div>
+              <div className="text-xl font-black text-[#FACC15] leading-none mt-0.5">{bonusBalance.toLocaleString('ru-RU')}</div>
+            </div>
+          </div>
+          <HubStats items={[{ v: orders.length, l: 'заказов' }, { v: completedOrders.length, l: 'выполнено' }, { v: pets.length, l: 'питомцев' }]} />
+          {latestActive && (
+            <Link to={`/order/${latestActive.id}`} className="flex items-center gap-3 rounded-2xl bg-green-500/12 border border-green-400/35 px-3.5 py-2.5 active:scale-[0.98] transition-transform">
+              <span className="relative w-2.5 h-2.5"><span className="absolute inset-0 rounded-full bg-green-400 animate-ping" /><span className="absolute inset-0 rounded-full bg-green-400" /></span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-bold leading-snug">{getSvcName(latestActive.service_name || '', lang)}</span>
+                <span className="block text-[11px] text-white/55">{STATUS_LABEL[latestActive.status] ?? ''}{latestActive.pet_name ? ` · ${latestActive.pet_name}` : ''}</span>
+              </span>
+              <span className="text-green-300 text-sm font-bold">Карта ›</span>
+            </Link>
+          )}
+        </>}
+        tiles={[
+          { k: 'pets', label: 'Мои питомцы', sub: pets.length ? pets.slice(0, 3).map((x) => x.name).join(', ') : 'Добавьте питомца', icon: '🐶', tone: 'green', title: 'Мои питомцы', content: petsBlock },
+          { k: 'bonus', label: 'Бонусы', sub: `${bonusBalance.toLocaleString('ru-RU')} Б`, icon: '🎁', tone: 'yellow', title: 'Бонусы и статус', content: <div className="space-y-4">{bonusCard}{tiersCard}</div> },
+          { k: 'friends', label: 'Друзьям', sub: `+${rules.friendSignup} Б`, icon: '🤝', tone: 'sky', title: 'Пригласить друга', content: referral },
+          { k: 'orders', label: 'Заказы', sub: `${orders.length} всего`, icon: '🗂️', tone: 'amber', badge: activeOrders.length || undefined, content: ordersBlock },
+          { k: 'passport', label: 'Ветпаспорт', sub: 'медкарта', icon: '📘', tone: 'purple', to: '/medcard' },
+          { k: 'recs', label: 'Советы', sub: 'от врача', icon: '💡', tone: 'red', title: 'Рекомендации', content: recsBlock },
+          { k: 'news', label: 'Новости', sub: 'ВетДом', icon: '📰', tone: 'sky', content: newsBlock },
+          { k: 'account', label: 'Настройки', sub: 'фото, данные', icon: '⚙️', tone: 'white', title: 'Настройки', content: <ClientSettings onAvatar={setAvatar} /> },
+        ]}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#1F150E]">
+
+      {/* ══════════════════════ HERO HEADER ══════════════════════ */}
+      <div className="relative overflow-hidden" style={{ background:'linear-gradient(180deg,rgba(42,29,20,1) 0%,rgba(31,21,14,1) 100%)' }}>
+        {/* grid bg */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage:'linear-gradient(rgba(124,184,66,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,184,66,0.04) 1px,transparent 1px)',
+          backgroundSize:'48px 48px'
+        }}/>
+        {/* radial glow behind avatar */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 rounded-full pointer-events-none"
+          style={{ background:'radial-gradient(ellipse,rgba(124,184,66,0.12) 0%,transparent 70%)' }}/>
+
+        <div className="relative max-w-5xl mx-auto px-4 pt-24 md:pt-[156px] pb-10">
+          {/* logout top-right */}
+          <button onClick={logout}
+            className="hidden md:block absolute md:top-[160px] md:right-4 text-xs text-red-400/40 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg"
+            style={{ border:'1px solid rgba(248,113,113,0.1)' }}>
+            {t('profile.logout')}
+          </button>
+
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
+            {/* Avatar */}
+            <div className="relative flex-shrink-0">
+              {avatar ? (
+                <img src={avatar} alt={user?.name} className="w-28 h-28 rounded-2xl object-cover"
+                  style={{ border:'3px solid rgba(124,184,66,0.5)', boxShadow:'0 0 40px rgba(124,184,66,0.25)' }} />
+              ) : (
+                <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-black text-green-400"
+                  style={{ background:'rgba(124,184,66,0.1)', border:'2px solid rgba(124,184,66,0.3)', boxShadow:'0 0 40px rgba(124,184,66,0.15)' }}>
+                  {initials}
+                </div>
+              )}
+              {/* online dot */}
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-400 border-2 border-[#1F150E] flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-[#1F150E]"/>
+              </span>
+            </div>
+
+            {/* User info */}
+            <div className="text-center sm:text-left flex-1">
+              <div className="flex items-center gap-3 justify-center sm:justify-start mb-1">
+                <h1 className="text-2xl font-black text-white">{user?.name}</h1>
+                {/* loyalty badge */}
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full"
+                  style={{ color: loyalty.color, background:`${loyalty.glow}20`, border:`1px solid ${loyalty.glow}` }}>
+                  {loyalty.label}
+                </span>
+              </div>
+              <p className="text-white/40 text-sm mb-0.5">{user?.phone}</p>
+              {user?.email && <p className="text-white/25 text-xs">{user.email}</p>}
+              <p className="text-white/20 text-xs mt-1">Клиент с {memberYear} года</p>
+            </div>
+
+            {/* Stats strip */}
+            <div className="flex gap-6 sm:gap-8 text-center">
+              {[
+                { val: String(orders.length),           label:'Заказов' },
+                { val: String(completedOrders.length),  label:'Выполнено' },
+                { val: String(pets.length),             label:'Питомцев' },
+              ].map(s => (
+                <div key={s.label}>
+                  <AnimatedNumber value={s.val} className="text-2xl font-black text-white block" duration={1600}/>
+                  <span className="text-white/30 text-[10px] uppercase tracking-widest">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ══ Программа лояльности ══ */}
+          <div className="mt-8 grid lg:grid-cols-[1.1fr_1fr] gap-4">
+            {bonusCard}
+            {tiersCard}
+          </div>
+
+          {referral}
+        </div>
+      </div>
+
+      {/* ══════════════════════ ACTIVE ORDER ══════════════════════ */}
+      {latestActive && (
+        <div className="max-w-5xl mx-auto px-4 -mt-1 mb-6">
+          <div className="relative rounded-2xl overflow-hidden" style={{ background:'linear-gradient(135deg,rgba(124,184,66,0.1),rgba(94,158,44,0.05))', border:'1.5px solid rgba(124,184,66,0.3)', boxShadow:'0 0 32px rgba(124,184,66,0.1)' }}>
+            <div className="flex items-center justify-between gap-4 px-6 py-5">
+              <div className="flex items-center gap-4">
+                <div className="relative flex-shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-green-400/15 border border-green-400/30 flex items-center justify-center text-green-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-[#1F150E]" style={{ animation:'ping-dot 1.5s ease-in-out infinite' }}/>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black tracking-[0.2em] uppercase text-green-400/60">{t('profile.activeOrder.badge')}</span>
+                  <p className="text-white font-bold">{getSvcName(latestActive.service_name||'', lang)}</p>
+                  <p className="text-white/40 text-xs">Заказ #{latestActive.id}{latestActive.pet_name?` · ${latestActive.pet_name}`:''}</p>
+                </div>
+              </div>
+              <Link to={`/order/${latestActive.id}`}
+                className="flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-105"
+                style={{ background:'rgba(124,184,66,0.15)', border:'1px solid rgba(124,184,66,0.4)', color:'rgba(124,184,66,0.95)' }}>
+                Отслеживать
+              </Link>
+            </div>
+          </div>
+          <style>{`@keyframes ping-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:0.4}}`}</style>
+        </div>
+      )}
+
+      {/* ══════════════════════ MAIN CONTENT ══════════════════════ */}
+      <div className="max-w-5xl mx-auto px-4 pb-24">
+
+        {/* ── Tab nav ─────────────────────────────────────────── */}
+        <div data-tabs className="grid grid-cols-3 md:flex gap-1.5 md:gap-1 mb-8 md:overflow-x-auto pb-1" style={{ scrollbarWidth:'none' }}>
+          {([
+            { id:'pets',    label:'Питомцы' },
+            { id:'actions', label:'Настройки' },
+            { id:'orders',  label:'История' },
+            { id:'recs',    label:'Рекомендации' },
+            { id:'news',    label:'Новости' },
+          ] as { id: typeof SECTIONS[number]; label: string }[]).map(tab => (
+            <button key={tab.id} onClick={()=>setActiveSection(tab.id)}
+              data-active={activeSection===tab.id ? '1' : undefined} className="px-2 md:px-4 py-2.5 md:py-2 rounded-xl text-[13px] md:text-sm font-bold whitespace-nowrap transition-all duration-200"
+              style={activeSection===tab.id
+                ? { background:'rgba(124,184,66,0.12)', border:'1px solid rgba(124,184,66,0.3)', color:'rgba(124,184,66,1)' }
+                : { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)' }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ══ SECTION: PETS ══════════════════════════════════════ */}
+        {activeSection === 'pets' && petsBlock}
+
+        {/* ══ SECTION: QUICK ACTIONS ═════════════════════════════ */}
+        {activeSection === 'actions' && actionsBlock}
+
+        {/* ══ SECTION: ORDER HISTORY ═════════════════════════════ */}
+        {activeSection === 'orders' && ordersBlock}
+
+        {/* ══ SECTION: RECOMMENDATIONS ═══════════════════════════ */}
+        {activeSection === 'recs' && recsBlock}
+
+        {/* ══ SECTION: NEWS ══════════════════════════════════════ */}
+        {activeSection === 'news' && newsBlock}
 
       </div>
     </div>
