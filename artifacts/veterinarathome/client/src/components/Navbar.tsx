@@ -48,26 +48,47 @@ export default function Navbar() {
     else setPets([]);
   }, [user]);
 
+  // Заголовок экрана в мобильной шапке
+  const p = location.pathname;
+  const mobileTitle =
+    p === '/services' ? 'Услуги' : p.startsWith('/service/') ? 'Услуга' : p === '/order' ? 'Вызов врача' :
+    p.startsWith('/order/') ? 'Ваш заказ' : p === '/shop' ? 'Магазин' : p.startsWith('/shop/') ? 'Товар' :
+    p === '/medcard' ? 'Ветпаспорт' : p === '/chats' ? 'Сообщения' : p.startsWith('/chat/') ? 'Чат с врачом' :
+    p === '/profile' ? 'Профиль' : p === '/history' ? 'Мои заказы' : p === '/charity' ? 'Помочь хвостикам' :
+    p === '/login' ? 'Вход' : p === '/register' ? 'Регистрация' : '';
+  const isRoot = p === '/';
+  const goBack = () => { if (window.history.state && window.history.state.idx > 0) navigate(-1); else navigate('/'); };
+
   const handleLogout = () => { logout(); navigate('/'); };
   const isActive = (path: string) => location.pathname === path;
   const changeLang = (code: string) => { i18n.changeLanguage(code); setLangOpen(false); };
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+    <nav style={{ paddingTop: 'env(safe-area-inset-top)' }} className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
       scrolled
-        ? 'bg-[#060d06]/95 backdrop-blur-xl border-b border-white/5 shadow-2xl'
-        : 'bg-transparent'
+        ? 'bg-[#4A3426]/95 backdrop-blur-xl border-b border-amber-300/30 shadow-2xl shadow-black/40'
+        : 'bg-[#4A3426]/80 backdrop-blur-xl border-b border-amber-300/25 shadow-lg shadow-black/25'
     }`}>
       <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center justify-between h-20">
+        <div className={`flex items-center justify-between transition-all duration-500 ${scrolled ? 'h-16 md:h-20' : 'h-16 md:h-[136px]'}`}>
+          {/* Мобильная шапка внутреннего экрана: «назад» и название */}
+          {!isRoot && (
+            <div className="md:hidden flex items-center gap-1 min-w-0 flex-1">
+              <button onClick={goBack} aria-label="Назад" className="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-white active:bg-white/10">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
+              <span className="font-black text-white text-[17px] truncate">{mobileTitle}</span>
+            </div>
+          )}
+
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className={`${isRoot ? 'flex' : 'hidden md:flex'} items-center gap-3 group`}>
             <div className="relative">
               <div className="absolute inset-0 bg-green-400/20 rounded-full blur-lg group-hover:bg-green-400/30 transition-all duration-300" />
-              <img src="/logo.jpeg" alt={t('nav.brand')} className="relative h-10 w-10 rounded-full object-cover border border-white/20" />
+              <img src="/logo.jpeg" alt={t('nav.brand')} className={`relative rounded-full object-cover border-2 border-white/30 shadow-xl shadow-black/40 transition-all duration-500 ${scrolled ? 'h-10 w-10 md:h-14 md:w-14' : 'h-10 w-10 md:h-[120px] md:w-[120px]'}`} />
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-bold text-white tracking-wide">{t('nav.brand')}</div>
+              <div className={`font-bold text-white tracking-wide transition-all duration-500 ${scrolled ? 'text-sm' : 'text-sm md:text-lg'}`}>{t('nav.brand')}</div>
               <div className="text-[10px] font-semibold text-green-400 uppercase tracking-[0.2em]">{t('nav.brandSub')}</div>
             </div>
           </Link>
@@ -76,14 +97,15 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-8">
             {[
               { to: '/', label: t('nav.home') },
-              ...(user ? [{ to: '/history', label: t('nav.orders') }] : []),
+              { to: '/shop', label: t('nav.shop', 'Магазин') },
+              { to: '/charity', label: t('nav.charity', 'Помочь ❤️') },
             ].map(({ to, label }) => (
               <Link key={to} to={to}
                 className={`text-sm font-medium tracking-wide transition-all duration-300 relative group px-4 py-1.5 rounded-full ${
-                  isActive(to) ? 'text-green-400' : 'text-white/60 hover:text-white'
+                  isActive(to) ? 'text-green-300' : 'text-white/90 hover:text-white'
                 }`}
                 style={isActive(to) ? {
-                  background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)',
+                  background: 'rgba(124,184,66,0.08)', border: '1px solid rgba(124,184,66,0.25)',
                   backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
                 } : { border: '1px solid transparent' }}
               >
@@ -101,10 +123,10 @@ export default function Navbar() {
             onClick={() => setSearchOpen(true)}
             className="hidden md:flex items-center gap-2.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 group hover:scale-[1.03]"
             style={{
-              background: 'linear-gradient(135deg, rgba(74,222,128,0.14) 0%, rgba(74,222,128,0.06) 100%)',
-              border: '1px solid rgba(74,222,128,0.35)',
-              color: 'rgba(74,222,128,0.9)',
-              boxShadow: '0 0 12px rgba(74,222,128,0.12)',
+              background: 'linear-gradient(135deg, rgba(124,184,66,0.14) 0%, rgba(124,184,66,0.06) 100%)',
+              border: '1px solid rgba(124,184,66,0.35)',
+              color: 'rgba(124,184,66,0.9)',
+              boxShadow: '0 0 12px rgba(124,184,66,0.12)',
             }}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -112,7 +134,7 @@ export default function Navbar() {
             </svg>
             <span className="text-xs tracking-wide">{t('nav.search')}</span>
             <kbd className="flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors"
-              style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: 'rgba(74,222,128,0.55)' }}>
+              style={{ background: 'rgba(124,184,66,0.1)', border: '1px solid rgba(124,184,66,0.25)', color: 'rgba(124,184,66,0.55)' }}>
               ⌘K
             </kbd>
           </button>
@@ -124,7 +146,7 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white/50 hover:text-white transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white/85 hover:text-white transition-all"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <span>{currentLang.label}</span>
@@ -136,7 +158,7 @@ export default function Navbar() {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 w-36 rounded-xl py-1.5 z-50 overflow-hidden"
-                    style={{ background: 'rgba(6,13,6,0.97)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(32px)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
+                    style={{ background: 'rgba(31,21,14,0.97)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(32px)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
                     {LANGS.map(l => (
                       <button key={l.code} onClick={() => changeLang(l.code)}
                         className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold transition-colors ${
@@ -166,9 +188,13 @@ export default function Navbar() {
                     border: '1px solid rgba(255,255,255,0.1)',
                     backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
                   }}>
-                  <div className="w-7 h-7 rounded-full bg-green-400/20 border border-green-400/30 flex items-center justify-center text-xs font-black text-green-400">
-                    {user.name[0].toUpperCase()}
-                  </div>
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border border-green-400/40" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-green-400/20 border border-green-400/30 flex items-center justify-center text-xs font-black text-green-400">
+                      {user.name[0].toUpperCase()}
+                    </div>
+                  )}
                   <div className="text-left">
                     <div className="text-xs font-semibold text-white leading-none">{user.name.split(' ')[0]}</div>
                     {pets.length > 0 && (
@@ -184,12 +210,16 @@ export default function Navbar() {
 
                 {profileOpen && (
                   <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl py-3 z-50"
-                    style={{ background: 'rgba(6,13,6,0.95)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}>
+                    style={{ background: 'rgba(31,21,14,0.95)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}>
                     <div className="px-4 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-green-400/15 border border-green-400/25 flex items-center justify-center text-sm font-black text-green-400">
-                          {user.name[0].toUpperCase()}
-                        </div>
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-green-400/40" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-green-400/15 border border-green-400/25 flex items-center justify-center text-sm font-black text-green-400">
+                            {user.name[0].toUpperCase()}
+                          </div>
+                        )}
                         <div>
                           <div className="text-sm font-semibold text-white">{user.name}</div>
                           <div className="text-[10px] text-white/30 uppercase tracking-wider">{t('nav.owner')}</div>
@@ -219,14 +249,22 @@ export default function Navbar() {
                       )}
                       <Link to="/profile" onClick={() => setProfileOpen(false)}
                         className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-green-400 transition-all hover:bg-green-400/10"
-                        style={{ border: '1px solid rgba(74,222,128,0.2)' }}>
+                        style={{ border: '1px solid rgba(124,184,66,0.2)' }}>
                         {t('nav.addPet')}
                       </Link>
                     </div>
                     <div className="px-4 pt-2 border-t border-white/5">
                       <Link to="/profile" onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all w-full">
+                        className="btn-blink flex items-center justify-center gap-2 px-3 py-2.5 mb-1 rounded-xl text-sm font-black w-full">
                         👤 {t('nav.profile')}
+                      </Link>
+                      <Link to="/history" onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/5 transition-all w-full">
+                        📋 {t('nav.history', 'История заказов')}
+                      </Link>
+                      <Link to="/chats" onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/5 transition-all w-full">
+                        💬 {t('nav.messages', 'Сообщения с врачами')}
                       </Link>
                       <button onClick={() => { handleLogout(); setProfileOpen(false); }}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400/60 hover:text-red-400 hover:bg-red-400/5 transition-all w-full">
@@ -265,13 +303,16 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="md:hidden pb-6 border-t border-white/5 pt-4 flex flex-col gap-4 bg-[#060d06]/95 backdrop-blur-xl">
-            <Link to="/" className="text-sm font-medium text-white/70 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.home')}</Link>
+          <div className="md:hidden pb-6 border-t border-white/5 pt-4 flex flex-col gap-4 bg-[#4A3426]/95 backdrop-blur-xl">
+            <Link to="/medcard" className="text-sm font-medium text-white/85 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.passportFull', 'Ветеринарный паспорт')}</Link>
+            <Link to="/" className="text-sm font-medium text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.home')}</Link>
+            <Link to="/shop" className="text-sm font-medium text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.shop', 'Магазин')}</Link>
+            <Link to="/charity" className="text-sm font-medium text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.charity', 'Помочь ❤️')}</Link>
             {user ? (
               <>
-                <Link to="/order" className="text-sm font-medium text-white/70 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.callVet')}</Link>
-                <Link to="/history" className="text-sm font-medium text-white/70 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.orders')}</Link>
-                <Link to="/profile" className="text-sm font-medium text-white/70 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.profile')}</Link>
+                <Link to="/order" className="text-sm font-medium text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.callVet')}</Link>
+                <Link to="/history" className="text-sm font-medium text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.orders')}</Link>
+                <Link to="/profile" className="text-sm font-medium text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>{t('nav.profile')}</Link>
                 <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="text-sm text-red-400/70 hover:text-red-400 text-left font-medium transition-colors">{t('nav.logout')}</button>
               </>
             ) : (

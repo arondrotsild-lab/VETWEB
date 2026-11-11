@@ -3,12 +3,20 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { initDb } from './db';
+import { seedDemo, seedPassportPet, seedReferralFriends, seedChats } from './demo';
 import authRoutes from './routes/auth';
 import petsRoutes from './routes/pets';
 import servicesRoutes from './routes/services';
 import ordersRoutes from './routes/orders';
 import vetsRoutes from './routes/vets';
 import suggestionsRoutes from './routes/suggestions';
+import loyaltyRoutes from './routes/loyalty';
+import triageRoutes from './routes/triage';
+import tilesRoutes from './routes/tiles';
+import charityRoutes, { initCharity } from './routes/charity';
+import shopRoutes, { initShop } from './routes/shop';
+import chatRoutes, { initChat, MEDIA_DIR } from './routes/chat';
+import voiceRoutes from './routes/voice';
 
 dotenv.config();
 
@@ -36,6 +44,14 @@ app.use('/api/services', servicesRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/vets', vetsRoutes);
 app.use('/api/suggestions', suggestionsRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/triage', triageRoutes);
+app.use('/api/tiles', tilesRoutes);
+app.use('/api/charity', charityRoutes);
+app.use('/api/shop', shopRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/voice', voiceRoutes);
+app.use('/api/media', express.static(MEDIA_DIR, { maxAge: '7d' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -51,6 +67,13 @@ if (process.env.NODE_ENV === 'production') {
 
 async function start() {
   await initDb();
+  await initCharity();
+  await initShop();
+  await initChat();
+  await seedDemo();
+  await seedPassportPet();
+  await seedReferralFriends();
+  await seedChats();
   app.listen(PORT, () => {
     console.log(`🚀 ВетДом API запущен на порту ${PORT}`);
   });

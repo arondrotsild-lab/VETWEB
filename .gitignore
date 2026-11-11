@@ -47,3 +47,15 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# local secrets
+.env
+
+# map tile cache
+artifacts/veterinarathome/server/tile-cache/
+
+# voice messages
+artifacts/veterinarathome/server/uploads/
+
+# speech model
+artifacts/veterinarathome/server/models/

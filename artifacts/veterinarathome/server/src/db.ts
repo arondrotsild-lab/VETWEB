@@ -21,6 +21,21 @@ export async function initDb() {
     );
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_nick VARCHAR(100);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(12) UNIQUE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    UPDATE users SET referral_code = upper(substr(md5(id::text || 'vetdom'), 1, 6)) WHERE referral_code IS NULL;
+    CREATE OR REPLACE FUNCTION set_user_referral_code() RETURNS trigger AS $fn$
+    BEGIN
+      IF NEW.referral_code IS NULL THEN
+        NEW.referral_code := upper(substr(md5(NEW.id::text || 'vetdom'), 1, 6));
+      END IF;
+      RETURN NEW;
+    END;
+    $fn$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS trg_user_referral_code ON users;
+    CREATE TRIGGER trg_user_referral_code BEFORE INSERT ON users
+      FOR EACH ROW EXECUTE FUNCTION set_user_referral_code();
 
     CREATE TABLE IF NOT EXISTS vets (
       id SERIAL PRIMARY KEY,
@@ -61,6 +76,26 @@ export async function initDb() {
     ALTER TABLE pets ADD COLUMN IF NOT EXISTS previous_treatment TEXT;
     ALTER TABLE pets ADD COLUMN IF NOT EXISTS current_concern TEXT;
 
+    -- Уникальный ID ветпаспорта для каждого питомца (формат VD-ГГ-NNNNNN)
+    ALTER TABLE pets ADD COLUMN IF NOT EXISTS passport_id VARCHAR(20) UNIQUE;
+    ALTER TABLE pets ADD COLUMN IF NOT EXISTS birth_date DATE;
+    ALTER TABLE pets ADD COLUMN IF NOT EXISTS sex VARCHAR(20);
+    ALTER TABLE pets ADD COLUMN IF NOT EXISTS color VARCHAR(100);
+    ALTER TABLE pets ADD COLUMN IF NOT EXISTS microchip VARCHAR(30);
+    UPDATE pets SET passport_id = 'VD-' || to_char(created_at, 'YY') || '-' || lpad(id::text, 6, '0')
+      WHERE passport_id IS NULL;
+    CREATE OR REPLACE FUNCTION set_pet_passport_id() RETURNS trigger AS $fn$
+    BEGIN
+      IF NEW.passport_id IS NULL THEN
+        NEW.passport_id := 'VD-' || to_char(now(), 'YY') || '-' || lpad(NEW.id::text, 6, '0');
+      END IF;
+      RETURN NEW;
+    END;
+    $fn$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS trg_pet_passport_id ON pets;
+    CREATE TRIGGER trg_pet_passport_id BEFORE INSERT ON pets
+      FOR EACH ROW EXECUTE FUNCTION set_pet_passport_id();
+
     CREATE TABLE IF NOT EXISTS services (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
@@ -87,6 +122,10 @@ export async function initDb() {
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
+
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonus_used INTEGER DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS ai_triage JSONB;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS voice_url TEXT;
 
     CREATE TABLE IF NOT EXISTS order_status_history (
       id SERIAL PRIMARY KEY,

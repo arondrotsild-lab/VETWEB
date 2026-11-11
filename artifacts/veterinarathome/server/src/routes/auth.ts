@@ -7,7 +7,7 @@ const router = Router();
 
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
-  const { name, phone, email, password, telegram_nick, role = 'client' } = req.body;
+  const { name, phone, email, password, telegram_nick, role = 'client', ref } = req.body;
   if (!name || !phone || !password) {
     res.status(400).json({ error: 'Имя, телефон и пароль обязательны' });
     return;
@@ -19,9 +19,15 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
     const hash = await bcrypt.hash(password, 10);
+    // Реферальный код пригласившего (только один уровень)
+    let referredBy: number | null = null;
+    if (ref) {
+      const r = await pool.query('SELECT id FROM users WHERE referral_code = $1', [String(ref).trim().toUpperCase()]);
+      referredBy = r.rows[0]?.id ?? null;
+    }
     const result = await pool.query(
-      'INSERT INTO users (name, phone, email, password_hash, role, telegram_nick) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, name, phone, email, role, telegram_nick',
-      [name, phone, email || null, hash, role === 'vet' ? 'vet' : 'client', telegram_nick || null]
+      'INSERT INTO users (name, phone, email, password_hash, role, telegram_nick, referred_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, name, phone, email, role, telegram_nick',
+      [name, phone, email || null, hash, role === 'vet' ? 'vet' : 'client', telegram_nick || null, referredBy]
     );
     const user = result.rows[0];
     if (user.role === 'vet') {
@@ -55,7 +61,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
     const token = generateToken({ id: user.id, role: user.role, name: user.name });
-    res.json({ token, user: { id: user.id, name: user.name, phone: user.phone, email: user.email, role: user.role } });
+    res.json({ token, user: { id: user.id, name: user.name, phone: user.phone, email: user.email, role: user.role, avatar_url: user.avatar_url } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -66,7 +72,7 @@ router.post('/login', async (req: Request, res: Response) => {
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, phone, email, role, created_at FROM users WHERE id = $1',
+      'SELECT id, name, phone, email, role, avatar_url, created_at FROM users WHERE id = $1',
       [req.user!.id]
     );
     if (result.rows.length === 0) {

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { computeLoyalty, MAX_BONUS_SHARE } from './loyalty';
 
 const router = Router();
 router.use(authMiddleware);
@@ -107,7 +108,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
 // POST /api/orders
 router.post('/', async (req: AuthRequest, res: Response) => {
-  const { pet_id, service_id, address, scheduled_at, notes } = req.body;
+  const { pet_id, service_id, address, scheduled_at, notes, use_bonus, ai_triage, voice_url } = req.body;
   if (!service_id || !pet_id || !address || !scheduled_at) {
     res.status(400).json({ error: 'Услуга, питомец, адрес и время обязательны' });
     return;
@@ -129,10 +130,19 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const svcRes = await pool.query('SELECT price_from FROM services WHERE id = $1', [service_id]);
     const price = svcRes.rows[0]?.price_from || 0;
 
+    // Списание бонусов: не больше 30% стоимости и не больше баланса
+    let bonus = 0;
+    if (use_bonus) {
+      const { balance } = await computeLoyalty(req.user!.id);
+      bonus = Math.min(balance, Math.floor(price * MAX_BONUS_SHARE));
+    }
+
     const result = await pool.query(
-      `INSERT INTO orders (client_id, pet_id, service_id, address, scheduled_at, notes, total_price)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.user!.id, pet_id, service_id, address, scheduledDate.toISOString(), notes || null, price]
+      `INSERT INTO orders (client_id, pet_id, service_id, address, scheduled_at, notes, total_price, bonus_used, ai_triage, voice_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [req.user!.id, pet_id, service_id, address, scheduledDate.toISOString(), notes || null, price - bonus, bonus,
+       ai_triage ? JSON.stringify(ai_triage) : null,
+       typeof voice_url === 'string' && /^\/api\/media\/voice\/[\w.-]+$/.test(voice_url) ? voice_url : null]
     );
     const order = result.rows[0];
     await pool.query(

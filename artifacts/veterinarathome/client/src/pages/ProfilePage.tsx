@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getPets, createPet, deletePet, getOrders } from '../api';
+import { getPets, createPet, deletePet, getOrders, getLoyalty, getMe } from '../api';
 import { useTranslation } from 'react-i18next';
 import { getSvcName } from '../utils/serviceNames';
 import ServiceIcon from '../components/ServiceIcon';
 import AnimatedNumber from '../components/AnimatedNumber';
 import i18n from '../i18n';
 
-interface Pet { id: number; name: string; species: string; breed?: string; age_years?: number; weight_kg?: number; notes?: string; }
+interface Pet { id: number; name: string; species: string; breed?: string; age_years?: number; weight_kg?: number; notes?: string; passport_id?: string; photo_url?: string; }
 interface Order { id: number; status: string; service_name: string; pet_name?: string; created_at: string; total_price?: number; }
 
 const ACTIVE_STATUSES = ['pending','confirmed','on_the_way','arrived','in_progress'];
@@ -82,11 +82,19 @@ function getPetSVG(species: string) {
 }
 
 /* Loyalty tiers */
-function getLoyalty(count: number) {
-  if (count >= 20) return { label: 'Платина', color: '#e5e7eb', glow: 'rgba(229,231,235,0.3)', next: 20, progress: 100 };
-  if (count >= 10) return { label: 'Золото',  color: '#fbbf24', glow: 'rgba(251,191,36,0.3)',  next: 20, progress: ((count-10)/10)*100 };
-  if (count >= 5)  return { label: 'Серебро', color: '#94a3b8', glow: 'rgba(148,163,184,0.3)', next: 10, progress: ((count-5)/5)*100 };
-  return             { label: 'Стартер', color: '#4ade80',  glow: 'rgba(74,222,128,0.3)',  next: 5,  progress: (count/5)*100 };
+
+/* ─── Программа лояльности: статус по сумме визитов, кешбэк бонусами ─── */
+const TIERS = [
+  { name: 'Друг',         icon: '🐾', from: 0,     rate: 10, color: '#9BCD67', glow: 'rgba(124,184,66,0.35)', perks: 'Кешбэк бонусами, напоминания о прививках' },
+  { name: 'Лучший друг',  icon: '⭐', from: 15000, rate: 12, color: '#FACC15', glow: 'rgba(250,204,21,0.30)', perks: '+ бесплатная онлайн-консультация раз в месяц' },
+  { name: 'Член семьи',   icon: '👑', from: 40000, rate: 15, color: '#F5EEE3', glow: 'rgba(245,238,227,0.30)', perks: '+ приоритетный выезд и личный ветеринар' },
+];
+
+interface LoyaltyData {
+  balance: number; spent: number; referralCode: string;
+  tier: { name: string }; accruals: { label: string; amount: number }[];
+  friends: { name: string; joined: string; visits: number; earned: number }[];
+  rules: { welcome: number; friendSignup: number; friendPercent: number; maxShare: number };
 }
 
 const SECTIONS = ['pets','actions','orders','recs','news'] as const;
@@ -109,16 +117,35 @@ export default function ProfilePage() {
   const [form, setForm]         = useState({ name:'',species:SPECIES[0],breed:'',age_years:'',weight_kg:'',notes:'' });
   const [activeSection, setActiveSection] = useState<typeof SECTIONS[number]>('pets');
 
+  const [loy, setLoy] = useState<LoyaltyData | null>(null);
+  const [avatar, setAvatar] = useState<string | undefined>(user?.avatar_url);
+  const [refCopied, setRefCopied] = useState(false);
+
   useEffect(() => {
     getPets().then(setPets).catch(()=>{});
     getOrders().then(setOrders).catch(()=>{});
+    getLoyalty().then(setLoy).catch(()=>{});
+    getMe().then((me) => setAvatar(me.avatar_url)).catch(()=>{});
   }, []);
 
   const activeOrders   = orders.filter(o => ACTIVE_STATUSES.includes(o.status));
   const completedOrders= orders.filter(o => o.status === 'completed');
   const latestActive   = activeOrders[0] ?? null;
   const recentOrders   = [...orders].sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime()).slice(0,5);
-  const loyalty        = getLoyalty(completedOrders.length);
+  const spent          = loy?.spent ?? 0;
+  const tier           = TIERS.find(tr => tr.name === loy?.tier.name) ?? TIERS[0];
+  const nextTier       = TIERS[TIERS.indexOf(tier) + 1];
+  const accruals       = loy?.accruals ?? [];
+  const bonusBalance   = loy?.balance ?? 0;
+  const friends        = loy?.friends ?? [];
+  const rules          = loy?.rules ?? { welcome: 500, friendSignup: 500, friendPercent: 5, maxShare: 0.3 };
+  const refCode        = loy?.referralCode ?? '';
+  const refLink        = `${window.location.origin}/register?ref=${refCode}`;
+  const refText        = `Вызываю ветеринара на дом через ВетДом — врач приезжает за 15–60 минут. Регистрируйся по моей ссылке и получи ${rules.welcome} бонусов:`;
+  const copyRef = () => {
+    navigator.clipboard?.writeText(refLink).then(() => { setRefCopied(true); setTimeout(() => setRefCopied(false), 1800); }).catch(() => {});
+  };
+  const loyalty        = { label: `${tier.icon} ${tier.name}`, color: tier.color, glow: tier.glow };
 
   const firstPet = pets[0];
   const petName  = firstPet?.name || '…';
@@ -154,16 +181,16 @@ export default function ProfilePage() {
   ];
 
   const newsItems = [
-    { tag:'Новинка', color:'rgba(74,222,128,0.08)', border:'rgba(74,222,128,0.2)', tc:'text-green-400', title:'Ночной вызов ветеринара', desc:'Теперь вызов специалиста доступен с 22:00 до 06:00 — без наценки на срочность.', date:'Авг 2026' },
-    { tag:'Акция',   color:'rgba(251,191,36,0.08)', border:'rgba(251,191,36,0.2)', tc:'text-amber-400', title:'−20% на груминг в августе', desc:'Скидка действует при записи онлайн через приложение до конца месяца.', date:'Авг 2026' },
+    { tag:'Новинка', color:'rgba(124,184,66,0.08)', border:'rgba(124,184,66,0.2)', tc:'text-green-400', title:'Ночной вызов ветеринара', desc:'Теперь вызов специалиста доступен с 22:00 до 06:00 — без наценки на срочность.', date:'Авг 2026' },
+    { tag:'Акция',   color:'rgba(201,154,99,0.08)', border:'rgba(201,154,99,0.2)', tc:'text-amber-400', title:'−20% на груминг в августе', desc:'Скидка действует при записи онлайн через приложение до конца месяца.', date:'Авг 2026' },
     { tag:'Совет',   color:'rgba(96,165,250,0.08)', border:'rgba(96,165,250,0.2)', tc:'text-blue-400',  title:'Жара и питомцы', desc:'Как правильно поить животных летом и признаки теплового удара — советы ветеринара.', date:'Июл 2026' },
     { tag:'Сервис',  color:'rgba(192,132,252,0.08)',border:'rgba(192,132,252,0.2)',tc:'text-purple-400',title:'Медкарта теперь в приложении', desc:'Вся история болезней, прививок и анализов доступна в одном месте.', date:'Июн 2026' },
   ];
 
   const quickActions = [
-    { label:'Вызвать врача', to:'/order', color:'#4ade80', bg:'rgba(74,222,128,0.1)', border:'rgba(74,222,128,0.25)',
+    { label:'Вызвать врача', to:'/order', color:'#7CB842', bg:'rgba(124,184,66,0.1)', border:'rgba(124,184,66,0.25)',
       icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 0116.9 1.18 2 2 0 0119.07 3.2l.03 2.92a2 2 0 01-2 2.06L15 8a2 2 0 00-2 1.72 12.84 12.84 0 00.7 3.74A2 2 0 0115 16a2 2 0 012.5 1.91z"/></svg> },
-    { label:'История', to:'/history', color:'#fbbf24', bg:'rgba(251,191,36,0.1)', border:'rgba(251,191,36,0.25)',
+    { label:'История', to:'/history', color:'#C99A63', bg:'rgba(201,154,99,0.1)', border:'rgba(201,154,99,0.25)',
       icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg> },
     { label:'Медкарта', to:'/medcard', color:'#c084fc', bg:'rgba(192,132,252,0.1)', border:'rgba(192,132,252,0.25)',
       icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 2H5a2 2 0 00-2 2v16a2 2 0 002 2h14a2 2 0 002-2V8l-6-6z"/><path d="M13 2v6h6M12 11v6M9 14h6"/></svg> },
@@ -182,23 +209,23 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#060d06]">
+    <div className="min-h-screen bg-[#1F150E]">
 
       {/* ══════════════════════ HERO HEADER ══════════════════════ */}
-      <div className="relative overflow-hidden" style={{ background:'linear-gradient(180deg,rgba(10,26,10,1) 0%,rgba(6,13,6,1) 100%)' }}>
+      <div className="relative overflow-hidden" style={{ background:'linear-gradient(180deg,rgba(42,29,20,1) 0%,rgba(31,21,14,1) 100%)' }}>
         {/* grid bg */}
         <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage:'linear-gradient(rgba(74,222,128,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(74,222,128,0.04) 1px,transparent 1px)',
+          backgroundImage:'linear-gradient(rgba(124,184,66,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,184,66,0.04) 1px,transparent 1px)',
           backgroundSize:'48px 48px'
         }}/>
         {/* radial glow behind avatar */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 rounded-full pointer-events-none"
-          style={{ background:'radial-gradient(ellipse,rgba(74,222,128,0.12) 0%,transparent 70%)' }}/>
+          style={{ background:'radial-gradient(ellipse,rgba(124,184,66,0.12) 0%,transparent 70%)' }}/>
 
-        <div className="relative max-w-5xl mx-auto px-4 pt-28 pb-10">
+        <div className="relative max-w-5xl mx-auto px-4 pt-24 md:pt-[156px] pb-10">
           {/* logout top-right */}
           <button onClick={logout}
-            className="absolute top-24 right-4 text-xs text-red-400/40 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg"
+            className="absolute top-20 md:top-[160px] right-4 text-xs text-red-400/40 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg"
             style={{ border:'1px solid rgba(248,113,113,0.1)' }}>
             {t('profile.logout')}
           </button>
@@ -206,13 +233,18 @@ export default function ProfilePage() {
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-black text-green-400"
-                style={{ background:'rgba(74,222,128,0.1)', border:'2px solid rgba(74,222,128,0.3)', boxShadow:'0 0 40px rgba(74,222,128,0.15)' }}>
-                {initials}
-              </div>
+              {avatar ? (
+                <img src={avatar} alt={user?.name} className="w-28 h-28 rounded-2xl object-cover"
+                  style={{ border:'3px solid rgba(124,184,66,0.5)', boxShadow:'0 0 40px rgba(124,184,66,0.25)' }} />
+              ) : (
+                <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-black text-green-400"
+                  style={{ background:'rgba(124,184,66,0.1)', border:'2px solid rgba(124,184,66,0.3)', boxShadow:'0 0 40px rgba(124,184,66,0.15)' }}>
+                  {initials}
+                </div>
+              )}
               {/* online dot */}
-              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-400 border-2 border-[#060d06] flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-[#060d06]"/>
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-400 border-2 border-[#1F150E] flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-[#1F150E]"/>
               </span>
             </div>
 
@@ -246,15 +278,133 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Loyalty progress bar */}
-          <div className="mt-8 rounded-2xl p-4" style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold" style={{ color: loyalty.color }}>Уровень: {loyalty.label}</span>
-              <span className="text-white/30 text-xs">{completedOrders.length} / {loyalty.next} заказов до следующего уровня</span>
+          {/* ══ Программа лояльности ══ */}
+          <div className="mt-8 grid lg:grid-cols-[1.1fr_1fr] gap-4">
+            {/* Карта бонусов */}
+            <div className="relative overflow-hidden rounded-3xl p-6 md:p-7 bg-gradient-to-br from-[#5A4331] via-[#3B2A1E] to-[#241911] border border-amber-300/25 shadow-2xl shadow-black/30">
+              <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full blur-3xl pointer-events-none" style={{ background: tier.glow }} />
+              <div className="relative flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-200/70">Наша благодарность вам</div>
+                  <div className="text-white/70 text-sm mt-1">Ваш статус</div>
+                  <div className="text-3xl font-black" style={{ color: tier.color }}>{tier.icon} {tier.name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-white/60 text-xs">Бонусов на счёте</div>
+                  <div className="text-4xl font-black text-white leading-none mt-1"><AnimatedNumber value={String(bonusBalance)} duration={1600} className="inline" /></div>
+                  <div className="text-xs text-amber-200/70 mt-1">= {bonusBalance.toLocaleString('ru-RU')} ₽ скидки</div>
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl bg-black/20 border border-white/10 px-4 py-3 mb-5 flex items-center gap-3">
+                <span className="text-3xl font-black text-green-400">{tier.rate}%</span>
+                <span className="text-sm text-white/80 leading-snug">возвращаем бонусами с каждого визита</span>
+              </div>
+              <div className="relative rounded-2xl bg-[#FACC15] text-[#1E140D] px-4 py-3 mb-5 flex items-center gap-3 font-bold">
+                <span className="text-2xl">💳</span>
+                <span className="text-sm leading-snug">Бонусами можно оплатить <span className="text-lg font-black">до 30%</span> стоимости любого визита. 1 бонус = 1 ₽</span>
+              </div>
+
+              {nextTier ? (
+                <div className="relative">
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="text-white/70">До статуса «{nextTier.name}»</span>
+                    <span className="text-white font-bold">{(nextTier.from - spent).toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.min(100, ((spent - tier.from) / (nextTier.from - tier.from)) * 100)}%`, background: `linear-gradient(90deg, ${tier.color}, ${nextTier.color})` }} />
+                  </div>
+                  <div className="text-[11px] text-white/50 mt-1.5">Потрачено на визиты: {spent.toLocaleString('ru-RU')} ₽</div>
+                </div>
+              ) : (
+                <div className="relative text-sm text-white/80">Вы на высшем уровне — спасибо, что вы с нами!</div>
+              )}
             </div>
-            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-1000"
-                style={{ width:`${loyalty.progress}%`, background:`linear-gradient(90deg,${loyalty.color}80,${loyalty.color})`, boxShadow:`0 0 8px ${loyalty.glow}` }}/>
+
+            {/* Уровни + начисления */}
+            <div className="rounded-3xl p-6 bg-white/[0.03] border border-white/10">
+              <div className="text-sm font-bold text-white mb-3">Уровни программы</div>
+              <div className="space-y-2 mb-5">
+                {TIERS.map((tr) => {
+                  const active = tr.name === tier.name;
+                  return (
+                    <div key={tr.name} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border ${active ? 'border-green-400/40 bg-green-500/10' : 'border-white/5 bg-white/[0.02]'}`}>
+                      <span className="text-xl">{tr.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold" style={{ color: active ? tr.color : 'rgba(255,255,255,0.85)' }}>
+                          {tr.name} <span className="text-white/40 font-normal text-xs">· {tr.from ? `от ${tr.from.toLocaleString('ru-RU')} ₽` : 'с первого визита'}</span>
+                        </div>
+                        <div className="text-xs text-white/50 truncate">{tr.perks}</div>
+                      </div>
+                      <span className="text-sm font-black text-green-400">{tr.rate}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-sm font-bold text-white mb-2">Последние начисления</div>
+              <ul className="space-y-1.5 text-sm">
+                {accruals.slice(0, 4).map((a, i) => (
+                  <li key={i} className="flex justify-between gap-3">
+                    <span className="text-white/60 truncate">{a.label}</span>
+                    <span className="font-bold text-green-400 whitespace-nowrap">+{a.amount.toLocaleString('ru-RU')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* ══ Реферальная программа ══ */}
+          <div className="mt-4 rounded-3xl p-6 md:p-7 bg-gradient-to-br from-green-600/25 via-green-800/10 to-transparent border border-green-400/30">
+            <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6 items-start">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-green-300/80 mb-1">Реферальная программа</div>
+                <h3 className="text-2xl md:text-3xl font-black text-white leading-tight mb-2">Рекомендуйте нас друзьям — и получайте бонусы</h3>
+                <p className="text-white/70 text-sm mb-5">
+                  <b className="text-white">+{rules.friendSignup} бонусов</b> за каждого друга, который зарегистрируется по вашей ссылке,
+                  и <b className="text-white">+{rules.friendPercent}%</b> с каждого его визита. Другу — {rules.welcome} приветственных бонусов.
+                  Бонусами можно оплатить до {Math.round(rules.maxShare * 100)}% стоимости визита.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 min-w-0 rounded-xl bg-black/25 border border-white/15 px-4 py-3">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">Ваш код</div>
+                    <div className="font-mono font-black text-xl text-white tracking-[0.2em]">{refCode || '······'}</div>
+                  </div>
+                  <button onClick={copyRef} disabled={!refCode}
+                    className="btn-gold px-6 py-3 text-sm whitespace-nowrap">
+                    {refCopied ? '✓ Ссылка скопирована' : 'Скопировать ссылку'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <a href={`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(refText)}`} target="_blank" rel="noreferrer"
+                    className="text-xs font-semibold px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors">Отправить в Telegram</a>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(refText + ' ' + refLink)}`} target="_blank" rel="noreferrer"
+                    className="text-xs font-semibold px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors">Отправить в WhatsApp</a>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-black/20 border border-white/10 p-5">
+                <div className="flex items-baseline justify-between mb-3">
+                  <div className="text-sm font-bold text-white">Ваши друзья</div>
+                  <div className="text-xs text-white/50">заработано: <b className="text-green-300">+{friends.reduce((s, f) => s + f.earned, 0).toLocaleString('ru-RU')}</b></div>
+                </div>
+                {friends.length === 0 ? (
+                  <p className="text-sm text-white/50">Пока никого. Отправьте ссылку — первый друг принесёт {rules.friendSignup} бонусов.</p>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {friends.map((f) => (
+                      <li key={f.name + f.joined} className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-green-500/20 border border-green-400/30 flex items-center justify-center text-sm font-black text-green-300">{f.name[0]}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-white truncate">{f.name}</div>
+                          <div className="text-[11px] text-white/45">с {new Date(f.joined).toLocaleDateString('ru-RU')} · визитов: {f.visits}</div>
+                        </div>
+                        <span className="text-sm font-black text-green-300">+{f.earned.toLocaleString('ru-RU')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -263,14 +413,14 @@ export default function ProfilePage() {
       {/* ══════════════════════ ACTIVE ORDER ══════════════════════ */}
       {latestActive && (
         <div className="max-w-5xl mx-auto px-4 -mt-1 mb-6">
-          <div className="relative rounded-2xl overflow-hidden" style={{ background:'linear-gradient(135deg,rgba(74,222,128,0.1),rgba(34,197,94,0.05))', border:'1.5px solid rgba(74,222,128,0.3)', boxShadow:'0 0 32px rgba(74,222,128,0.1)' }}>
+          <div className="relative rounded-2xl overflow-hidden" style={{ background:'linear-gradient(135deg,rgba(124,184,66,0.1),rgba(94,158,44,0.05))', border:'1.5px solid rgba(124,184,66,0.3)', boxShadow:'0 0 32px rgba(124,184,66,0.1)' }}>
             <div className="flex items-center justify-between gap-4 px-6 py-5">
               <div className="flex items-center gap-4">
                 <div className="relative flex-shrink-0">
                   <div className="w-11 h-11 rounded-full bg-green-400/15 border border-green-400/30 flex items-center justify-center text-green-400">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   </div>
-                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-[#060d06]" style={{ animation:'ping-dot 1.5s ease-in-out infinite' }}/>
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-[#1F150E]" style={{ animation:'ping-dot 1.5s ease-in-out infinite' }}/>
                 </div>
                 <div>
                   <span className="text-[10px] font-black tracking-[0.2em] uppercase text-green-400/60">{t('profile.activeOrder.badge')}</span>
@@ -280,7 +430,7 @@ export default function ProfilePage() {
               </div>
               <Link to={`/order/${latestActive.id}`}
                 className="flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-105"
-                style={{ background:'rgba(74,222,128,0.15)', border:'1px solid rgba(74,222,128,0.4)', color:'rgba(74,222,128,0.95)' }}>
+                style={{ background:'rgba(124,184,66,0.15)', border:'1px solid rgba(124,184,66,0.4)', color:'rgba(124,184,66,0.95)' }}>
                 Отслеживать
               </Link>
             </div>
@@ -304,7 +454,7 @@ export default function ProfilePage() {
             <button key={tab.id} onClick={()=>setActiveSection(tab.id)}
               className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-200"
               style={activeSection===tab.id
-                ? { background:'rgba(74,222,128,0.12)', border:'1px solid rgba(74,222,128,0.3)', color:'rgba(74,222,128,1)' }
+                ? { background:'rgba(124,184,66,0.12)', border:'1px solid rgba(124,184,66,0.3)', color:'rgba(124,184,66,1)' }
                 : { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)' }}>
               {tab.label}
             </button>
@@ -321,13 +471,13 @@ export default function ProfilePage() {
               </div>
               <button onClick={()=>setShowAdd(true)}
                 className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:scale-105"
-                style={{ background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.3)', color:'rgba(251,191,36,0.9)' }}>
+                style={{ background:'rgba(201,154,99,0.1)', border:'1px solid rgba(201,154,99,0.3)', color:'rgba(201,154,99,0.9)' }}>
                 + {t('profile.addPet')}
               </button>
             </div>
 
             {showAdd && (
-              <form onSubmit={handleAdd} className="rounded-2xl p-5 mb-2" style={{ background:'rgba(74,222,128,0.04)', border:'1px solid rgba(74,222,128,0.15)' }}>
+              <form onSubmit={handleAdd} className="rounded-2xl p-5 mb-2" style={{ background:'rgba(124,184,66,0.04)', border:'1px solid rgba(124,184,66,0.15)' }}>
                 <h3 className="font-semibold text-white mb-4 text-sm">{t('profile.newPetTitle')}</h3>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div><label className="label">{t('profile.petName')}</label><input className="input" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t('profile.petNamePh')}/></div>
@@ -362,25 +512,31 @@ export default function ProfilePage() {
                   const hasActive = activeOrders.some(o=>o.pet_name===pet.name);
                   return (
                     <div key={pet.id} className="rounded-2xl overflow-hidden transition-all duration-200 hover:scale-[1.01]"
-                      style={{ background:hasActive?'rgba(74,222,128,0.05)':'rgba(255,255,255,0.03)', border:hasActive?'1.5px solid rgba(74,222,128,0.25)':'1px solid rgba(255,255,255,0.07)' }}>
+                      style={{ background:hasActive?'rgba(124,184,66,0.05)':'rgba(255,255,255,0.03)', border:hasActive?'1.5px solid rgba(124,184,66,0.25)':'1px solid rgba(255,255,255,0.07)' }}>
                       {/* pet card header */}
                       <div className="flex items-start justify-between p-5 pb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-green-400/70"
-                            style={{ background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.15)' }}>
-                            {getPetSVG(pet.species)}
-                          </div>
+                          {pet.photo_url ? (
+                            <img src={pet.photo_url} alt={pet.name} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0"
+                              style={{ border:'2px solid rgba(124,184,66,0.35)', boxShadow:'0 6px 20px rgba(0,0,0,0.35)' }} />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-green-400/70"
+                              style={{ background:'rgba(124,184,66,0.08)', border:'1px solid rgba(124,184,66,0.15)' }}>
+                              {getPetSVG(pet.species)}
+                            </div>
+                          )}
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-white text-sm">{pet.name}</p>
                               {hasActive && (
                                 <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase"
-                                  style={{ background:'rgba(74,222,128,0.12)', border:'1px solid rgba(74,222,128,0.25)', color:'rgba(74,222,128,0.8)' }}>
+                                  style={{ background:'rgba(124,184,66,0.12)', border:'1px solid rgba(124,184,66,0.25)', color:'rgba(124,184,66,0.8)' }}>
                                   <span className="w-1.5 h-1.5 rounded-full bg-green-400" style={{ animation:'ping-dot 1.5s infinite' }}/>live
                                 </span>
                               )}
                             </div>
                             <p className="text-white/35 text-xs">{pet.species}{pet.breed?`, ${pet.breed}`:''}</p>
+                            {pet.passport_id && <p className="font-mono text-[10px] text-green-400/80 mt-0.5 tracking-wider">ID {pet.passport_id}</p>}
                           </div>
                         </div>
                         <button onClick={()=>handleDelete(pet.id)} className="text-white/15 hover:text-red-400 transition-colors p-1 mt-0.5">
@@ -430,7 +586,7 @@ export default function ProfilePage() {
                 {achievements.map((a, i) => (
                   <div key={i} className="rounded-xl p-3 text-center transition-all duration-200"
                     style={a.done
-                      ? { background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.2)' }
+                      ? { background:'rgba(124,184,66,0.08)', border:'1px solid rgba(124,184,66,0.2)' }
                       : { background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)', opacity:0.4 }}>
                     <div className="text-xl mb-1">{a.icon}</div>
                     <div className="text-[9px] font-black text-white/70 uppercase tracking-wide leading-tight">{a.label}</div>
@@ -511,7 +667,7 @@ export default function ProfilePage() {
                     style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
                     {/* service icon */}
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-green-400/60"
-                      style={{ background:'rgba(74,222,128,0.06)', border:'1px solid rgba(74,222,128,0.12)' }}>
+                      style={{ background:'rgba(124,184,66,0.06)', border:'1px solid rgba(124,184,66,0.12)' }}>
                       <ServiceIcon name={o.service_name} size={18}/>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -551,11 +707,11 @@ export default function ProfilePage() {
                   style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-green-400/70"
-                      style={{ background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.15)' }}>
+                      style={{ background:'rgba(124,184,66,0.08)', border:'1px solid rgba(124,184,66,0.15)' }}>
                       <ServiceIcon name={r.svc} size={20}/>
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/80 px-2 py-0.5 rounded-full"
-                      style={{ background:'rgba(251,191,36,0.08)', border:'1px solid rgba(251,191,36,0.15)' }}>{r.tag}</span>
+                      style={{ background:'rgba(201,154,99,0.08)', border:'1px solid rgba(201,154,99,0.15)' }}>{r.tag}</span>
                   </div>
                   <div>
                     <p className="text-white text-sm font-bold mb-1 leading-snug">{r.title}</p>

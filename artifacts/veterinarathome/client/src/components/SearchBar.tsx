@@ -95,7 +95,7 @@ export default function SearchBar({ open, onClose }: Props) {
       {/* backdrop */}
       <div
         className="fixed inset-0 z-[200] transition-all duration-200"
-        style={{ background: 'rgba(2,6,2,0.85)', backdropFilter: 'blur(12px)' }}
+        style={{ background: 'rgba(18,12,7,0.85)', backdropFilter: 'blur(12px)' }}
         onClick={onClose}
       />
 
@@ -105,7 +105,7 @@ export default function SearchBar({ open, onClose }: Props) {
         style={{ top: '10vh', transform: 'translateX(-50%)' }}
       >
         <div className="rounded-2xl overflow-hidden shadow-2xl"
-          style={{ background: 'rgba(6,13,6,0.98)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(74,222,128,0.08)' }}>
+          style={{ background: 'rgba(31,21,14,0.98)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,184,66,0.08)' }}>
 
           {/* search input row */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-white/6">
@@ -155,14 +155,14 @@ export default function SearchBar({ open, onClose }: Props) {
                       data-item
                       onClick={() => go(`/service/${svc.id}`)}
                       className="w-full flex items-center gap-4 px-5 py-3 text-left transition-all duration-100 group"
-                      style={{ background: isActive ? 'rgba(74,222,128,0.07)' : 'transparent' }}
+                      style={{ background: isActive ? 'rgba(124,184,66,0.07)' : 'transparent' }}
                       onMouseEnter={() => setCursor(i)}
                     >
                       <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all"
                         style={{
-                          background: isActive ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.04)',
-                          border: `1px solid ${isActive ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.07)'}`,
-                          color: isActive ? 'rgba(74,222,128,0.9)' : 'rgba(255,255,255,0.35)',
+                          background: isActive ? 'rgba(124,184,66,0.12)' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${isActive ? 'rgba(124,184,66,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                          color: isActive ? 'rgba(124,184,66,0.9)' : 'rgba(255,255,255,0.35)',
                         }}>
                         <ServiceIcon name={svc.name} size={18} />
                       </div>
@@ -177,11 +177,11 @@ export default function SearchBar({ open, onClose }: Props) {
                         </p>
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-3">
-                        <span className="text-xs font-bold" style={{ color: isActive ? 'rgba(74,222,128,0.8)' : 'rgba(74,222,128,0.4)' }}>
+                        <span className="text-xs font-bold" style={{ color: isActive ? 'rgba(124,184,66,0.8)' : 'rgba(124,184,66,0.4)' }}>
                           {t('search.from')}{svc.price_from.toLocaleString()} ₽
                         </span>
                         <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ color: 'rgba(74,222,128,0.6)' }}
+                          style={{ color: 'rgba(124,184,66,0.6)' }}
                           fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                           <path d="M2 5h6M5 2l3 3-3 3"/>
                         </svg>

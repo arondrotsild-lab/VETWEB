@@ -94,7 +94,7 @@ export default {
       cardNumber: 'Kart Numarası', cardName: 'Kart Sahibi', cardExpiry: 'Son Kullanma', cardCvv: 'CVV',
       cardNumberPh: '0000 0000 0000 0000', cardNamePh: 'IVAN PETROV', expiryPh: 'AA/YY', cvvPh: '•••',
       pay: 'Onaya Geç →', secure: 'Güvenli ödeme · SSL 256-bit',
-      demo: 'Demo modu — gerçek ücret alınmaz',
+      demo: 'Ödeme ziyaretten sonra — şimdi ücret alınmaz',
       cashNote: 'Hizmetten sonra veterinere nakit ödeyin. Komisyon yok.',
       sbpNote: 'Ziyaretten sonra ödemeyi veterinerin telefon numarasına gönderin.',
       cardHolder: 'KART SAHİBİ', expires: 'SON KULLANMA',

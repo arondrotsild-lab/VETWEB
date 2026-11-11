@@ -13,20 +13,20 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#060d06]"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#1F150E]"
       style={{ transition: 'opacity 0.6s ease', opacity: fading ? 0 : 1, pointerEvents: fading ? 'none' : 'all' }}
     >
       <div className="relative flex items-center justify-center">
         {/* Outer spinning ring */}
         <svg className="absolute" width="140" height="140" viewBox="0 0 140 140"
           style={{ animation: 'spin-logo 1.4s linear infinite' }}>
-          <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(74,222,128,0.15)" strokeWidth="2" />
+          <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(124,184,66,0.15)" strokeWidth="2" />
           <circle cx="70" cy="70" r="62" fill="none" stroke="url(#grad)" strokeWidth="2.5"
             strokeLinecap="round" strokeDasharray="80 310" />
           <defs>
             <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#4ade80" stopOpacity="0" />
-              <stop offset="100%" stopColor="#4ade80" stopOpacity="1" />
+              <stop offset="0%" stopColor="#7CB842" stopOpacity="0" />
+              <stop offset="100%" stopColor="#7CB842" stopOpacity="1" />
             </linearGradient>
           </defs>
         </svg>
@@ -34,14 +34,14 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         {/* Inner ring — reverse */}
         <svg className="absolute" width="116" height="116" viewBox="0 0 116 116"
           style={{ animation: 'spin-logo-reverse 2s linear infinite' }}>
-          <circle cx="58" cy="58" r="50" fill="none" stroke="rgba(251,191,36,0.12)" strokeWidth="1.5" />
-          <circle cx="58" cy="58" r="50" fill="none" stroke="rgba(251,191,36,0.5)" strokeWidth="1.5"
+          <circle cx="58" cy="58" r="50" fill="none" stroke="rgba(201,154,99,0.12)" strokeWidth="1.5" />
+          <circle cx="58" cy="58" r="50" fill="none" stroke="rgba(201,154,99,0.5)" strokeWidth="1.5"
             strokeLinecap="round" strokeDasharray="30 285" />
         </svg>
 
         {/* Logo */}
         <div className="w-20 h-20 rounded-full overflow-hidden"
-          style={{ boxShadow: '0 0 32px rgba(74,222,128,0.25), 0 0 64px rgba(74,222,128,0.1)' }}>
+          style={{ boxShadow: '0 0 32px rgba(124,184,66,0.25), 0 0 64px rgba(124,184,66,0.1)' }}>
           <img src="/logo.jpeg" alt={t('nav.brand')} className="w-full h-full object-cover" />
         </div>
       </div>

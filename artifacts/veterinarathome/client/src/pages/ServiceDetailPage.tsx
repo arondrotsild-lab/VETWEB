@@ -364,7 +364,7 @@ export default function ServiceDetailPage() {
   }, [id]);
 
   if (!service) return (
-    <div className="min-h-screen bg-[#060d06] flex items-center justify-center">
+    <div className="min-h-screen bg-[#1F150E] flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
     </div>
   );
@@ -372,7 +372,7 @@ export default function ServiceDetailPage() {
   const proof = getProof(service.name);
 
   return (
-    <div className="min-h-screen bg-[#060d06] text-white pt-24 pb-20">
+    <div className="min-h-screen bg-[#1F150E] text-white pt-24 md:pt-[156px] pb-20">
       <div className="max-w-5xl mx-auto px-6">
         {/* Back */}
         <Link to="/" className="inline-flex items-center gap-2 text-white/30 hover:text-white/60 text-sm transition-colors mb-10">
@@ -383,7 +383,7 @@ export default function ServiceDetailPage() {
         {/* Hero */}
         <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
           <div>
-            <div className="mb-6 w-16 h-16 rounded-2xl flex items-center justify-center text-green-400" style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.15)' }}>
+            <div className="mb-6 w-16 h-16 rounded-2xl flex items-center justify-center text-green-400" style={{ background: 'rgba(124,184,66,0.08)', border: '1px solid rgba(124,184,66,0.15)' }}>
               <ServiceIcon name={service.name} size={36} />
             </div>
             <div className="inline-flex items-center gap-2 mb-4">
@@ -425,7 +425,7 @@ export default function ServiceDetailPage() {
           <h2 className="text-2xl font-black mb-6">{t('service.helped')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {proof.animals.map((a, i) => (
-              <div key={i} className="rounded-2xl p-5 text-center" style={{ background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.12)' }}>
+              <div key={i} className="rounded-2xl p-5 text-center" style={{ background: 'rgba(124,184,66,0.04)', border: '1px solid rgba(124,184,66,0.12)' }}>
                 <div className="w-12 h-12 mx-auto mb-3 text-green-400/70">
                   {ANIMAL_ICON[a.emoji] ?? (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="100%" height="100%">
@@ -449,7 +449,7 @@ export default function ServiceDetailPage() {
               {proof.bullets.map((b, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="w-5 h-5 rounded-full bg-green-400/15 border border-green-400/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="rgba(74,222,128,0.9)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="rgba(124,184,66,0.9)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </span>
                   <span className="text-white/70 text-sm leading-relaxed">{b}</span>
                 </li>
@@ -458,7 +458,7 @@ export default function ServiceDetailPage() {
           </div>
 
           {/* Urgency banner */}
-          <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ background: 'linear-gradient(135deg,rgba(74,222,128,0.07),rgba(251,191,36,0.05))', border: '1px solid rgba(74,222,128,0.15)' }}>
+          <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ background: 'linear-gradient(135deg,rgba(124,184,66,0.07),rgba(201,154,99,0.05))', border: '1px solid rgba(124,184,66,0.15)' }}>
             <div>
               <div className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3">{t('service.urgencyTitle')}</div>
               <p className="text-white/70 text-sm leading-relaxed mb-4">{t('service.urgencyDesc')}</p>
@@ -482,7 +482,7 @@ export default function ServiceDetailPage() {
                 <div key={i} className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
                   <button
                     className="w-full flex items-center justify-between px-6 py-4 text-left"
-                    style={{ background: openFaq === i ? 'rgba(74,222,128,0.05)' : 'rgba(255,255,255,0.03)' }}
+                    style={{ background: openFaq === i ? 'rgba(124,184,66,0.05)' : 'rgba(255,255,255,0.03)' }}
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   >
                     <span className="font-semibold text-white/90 text-sm pr-4">{item.q}</span>

@@ -23,7 +23,7 @@ api.interceptors.response.use(
 export default api;
 
 // Auth
-export const register = (data: { name: string; phone: string; email?: string; password: string; telegram_nick?: string }) =>
+export const register = (data: { name: string; phone: string; email?: string; password: string; telegram_nick?: string; ref?: string }) =>
   api.post('/auth/register', data).then((r) => r.data);
 
 export const login = (data: { phone: string; password: string }) =>
@@ -53,3 +53,35 @@ export const getVets = () => api.get('/vets').then((r) => r.data);
 // Suggestions
 export const createSuggestion = (data: { name?: string; telegram?: string; comment: string }) =>
   api.post('/suggestions', data).then((r) => r.data);
+
+// Поиск питомца по ID ветпаспорта (VD-ГГ-NNNNNN)
+export const getPetByPassport = (passportId: string) =>
+  api.get(`/pets/passport/${encodeURIComponent(passportId)}`).then((r) => r.data);
+
+// Программа лояльности и реферальная программа
+export const getLoyalty = () => api.get('/loyalty').then((r) => r.data);
+
+// ИИ-помощник: предварительная оценка по рассказу владельца
+export const getTriage = (text: string, pet?: string) =>
+  api.post('/triage', { text, pet }).then((r) => r.data);
+
+// Благотворительность
+export const getCharity = () => api.get('/charity').then((r) => r.data);
+export const donate = (caseId: number, amount: number) =>
+  api.post(`/charity/${caseId}/donate`, { amount }).then((r) => r.data);
+
+// Магазин
+export const getProducts = () => api.get('/shop').then((r) => r.data);
+export const getProduct = (id: number) => api.get(`/shop/${id}`).then((r) => r.data);
+export const buyProduct = (id: number, qty: number, pay: 'rub' | 'bonus', variant = 0) =>
+  api.post(`/shop/${id}/buy`, { qty, pay, variant }).then((r) => r.data);
+
+// Чат с ветеринаром
+export const getChats = () => api.get('/chat').then((r) => r.data);
+export const getChat = (orderId: number) => api.get(`/chat/${orderId}`).then((r) => r.data);
+export const sendChat = (orderId: number, text: string) => api.post(`/chat/${orderId}`, { text }).then((r) => r.data);
+export const sendVoice = (orderId: number, data: { audio: string; duration: number; waveform: number[]; transcript: string }) =>
+  api.post(`/chat/${orderId}/voice`, data).then((r) => r.data);
+
+// Голосовая запись при вызове врача: сохранить и расшифровать на сервере
+export const uploadVoice = (audio: string) => api.post('/voice', { audio }).then((r) => r.data as { audio_url: string; transcript: string });

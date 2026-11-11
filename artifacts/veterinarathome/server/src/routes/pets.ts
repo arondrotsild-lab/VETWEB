@@ -14,6 +14,31 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   res.json(result.rows);
 });
 
+// GET /api/pets/passport/:passportId — поиск питомца по ID ветпаспорта
+// Владелец видит своих питомцев; ветеринар и админ — любого питомца в системе
+router.get('/passport/:passportId', async (req: AuthRequest, res: Response) => {
+  const pid = String(req.params.passportId).trim().toUpperCase();
+  const result = await pool.query(
+    `SELECT p.*, u.name AS owner_name FROM pets p JOIN users u ON u.id = p.owner_id
+     WHERE upper(p.passport_id) = $1`,
+    [pid]
+  );
+  const pet = result.rows[0];
+  const canSee = pet && (pet.owner_id === req.user!.id || ['vet', 'admin'].includes(req.user!.role));
+  if (!canSee) {
+    res.status(404).json({ error: 'Питомец с таким ID не найден' });
+    return;
+  }
+  const visits = await pool.query(
+    `SELECT o.id, o.status, o.scheduled_at, o.notes, s.name AS service_name, vu.name AS vet_name
+     FROM orders o LEFT JOIN services s ON s.id = o.service_id
+     LEFT JOIN vets v ON v.id = o.vet_id LEFT JOIN users vu ON vu.id = v.user_id
+     WHERE o.pet_id = $1 ORDER BY o.scheduled_at DESC`,
+    [pet.id]
+  );
+  res.json({ ...pet, visits: visits.rows });
+});
+
 // POST /api/pets
 router.post('/', async (req: AuthRequest, res: Response) => {
   const { name, species, breed, age_years, weight_kg, notes, photo_url, telegram_nick, diagnoses, previous_treatment, current_concern } = req.body;

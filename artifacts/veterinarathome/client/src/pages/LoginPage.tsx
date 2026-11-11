@@ -28,8 +28,22 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemo = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await apiLogin({ phone: '+79990000000', password: 'demo1234' });
+      login(data.token, data.user);
+      navigate('/profile');
+    } catch {
+      setError(t('login.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#060d06] flex items-center justify-center py-12 px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#1F150E] flex items-center justify-center py-12 px-4 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-800/15 rounded-full blur-[100px]" />
       </div>
@@ -69,6 +83,10 @@ export default function LoginPage() {
               {loading ? t('login.loading') : t('login.submit')}
             </button>
           </form>
+          <button type="button" onClick={handleDemo} disabled={loading}
+            className="w-full mt-4 py-3.5 rounded-xl font-bold text-base text-green-300 border border-green-400/40 bg-green-400/10 hover:bg-green-400/20 transition-colors">
+            🐾 {t('login.quick', 'Быстрый вход')}
+          </button>
           <div className="divider my-6" />
           <p className="text-center text-sm text-white/30">
             {t('login.noAccount')}{' '}

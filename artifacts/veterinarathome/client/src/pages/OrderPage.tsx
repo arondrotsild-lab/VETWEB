@@ -1,13 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getServices, getPets, createOrder, createPet } from '../api';
+import { getServices, getPets, createOrder, createPet, getLoyalty } from '../api';
+import VoiceTriage, { Triage } from '../components/VoiceTriage';
 import ServiceIcon from '../components/ServiceIcon';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { getSvcName, getSvcDesc } from '../utils/serviceNames';
 
 interface Service { id: number; name: string; description: string; price_from: number; price_to: number; duration_minutes: number; icon: string; }
-interface Pet { id: number; name: string; species: string; breed?: string; age_years?: number; }
+interface Pet { id: number; name: string; species: string; breed?: string; age_years?: number; current_concern?: string; diagnoses?: string; }
+
+// Готовые данные для быстрого оформления заказа
+const DEFAULT_ADDRESS = 'Москва, Кутузовский проспект, д. 8, кв. 54';
+function defaultVisitTime() {
+  const preset = new Date('2026-11-24T14:00');
+  const d = preset.getTime() > Date.now() ? preset : (() => { const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(14, 0, 0, 0); return t; })();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+const PET_COMPLAINTS: Record<string, string> = {
+  'Персик': 'Персик третий день плохо ест и стал вялым, утром была рвота. В анамнезе — хронический гастрит. Кот пугливый, лучше без резких звуков.',
+  'Барон': 'Барону нужна плановая ежегодная вакцинация. Последние дни чешет уши и лапы — возможно, обострилась аллергия на курицу. Пёс дружелюбный.',
+  'Муся': 'Муся последние две недели набирает вес и мало двигается — нужен осмотр и совет по питанию. Боится громких звуков.',
+  'Марс': 'Марс прихрамывает на переднюю левую лапу после прогулки в парке. Год назад был порез подушечки этой лапы. Аллергия на курицу.',
+};
+function complaintFor(pet?: Pet) {
+  if (!pet) return '';
+  if (PET_COMPLAINTS[pet.name]) return PET_COMPLAINTS[pet.name];
+  const parts = [pet.current_concern && `${pet.name}: ${pet.current_concern}.`, pet.diagnoses && `В анамнезе: ${pet.diagnoses}.`].filter(Boolean);
+  return parts.join(' ');
+}
 
 export default function OrderPage() {
   const navigate = useNavigate();
@@ -15,14 +37,28 @@ export default function OrderPage() {
   const lang = i18n.language || 'ru';
   const tName = (name: string) => getSvcName(name, lang);
   const [step, setStep] = useState(1);
+  // Каждый шаг оформления начинается с верха страницы
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [step]);
   const [services, setServices] = useState<Service[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
-  const [address, setAddress] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
+  const [address, setAddress] = useState(DEFAULT_ADDRESS);
+  const [scheduledAt, setScheduledAt] = useState(defaultVisitTime);
   const [notes, setNotes] = useState('');
+  const [notesTouched, setNotesTouched] = useState(false);
+  const [aiTriage, setAiTriage] = useState<Triage | null>(null);
+  const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  // Жалоба подставляется по выбранному питомцу, пока пользователь не начал писать сам
+  useEffect(() => {
+    if (notesTouched) return;
+    setNotes(complaintFor(pets.find((pt) => pt.id === selectedPetId)));
+  }, [selectedPetId, pets, notesTouched]);
   const [loading, setLoading] = useState(false);
+  // Бонусы: можно оплатить до 30% стоимости каждого визита
+  const [bonusBalance, setBonusBalance] = useState(0);
+  const [useBonus, setUseBonus] = useState(true);
+  useEffect(() => { getLoyalty().then((l) => setBonusBalance(l.balance || 0)).catch(() => {}); }, []);
   const [showAddPet, setShowAddPet] = useState(false);
   const [newPet, setNewPet] = useState({ name: '', species: '', breed: '', age_years: '' });
   const [addingPet, setAddingPet] = useState(false);
@@ -30,10 +66,11 @@ export default function OrderPage() {
 
   // Payment state
   const [payMethod, setPayMethod] = useState<'card' | 'cash' | 'sbp'>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
+  // Карта заполнена заранее, чтобы оплата выглядела готовой (оплата не списывается)
+  const [cardNumber, setCardNumber] = useState('2202 2015 7845 3961');
+  const [cardName, setCardName] = useState('ALEXANDER MOROZOV');
+  const [cardExpiry, setCardExpiry] = useState('09/29');
+  const [cardCvv, setCardCvv] = useState('742');
   const [cardFlipped, setCardFlipped] = useState(false);
   const [payProcessing, setPayProcessing] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
@@ -86,6 +123,13 @@ export default function OrderPage() {
   };
 
   const totalFrom = selectedServices.reduce((sum, s) => sum + s.price_from, 0);
+  const bonusToUse = (() => {
+    if (!useBonus) return 0;
+    let left = bonusBalance, used = 0;
+    for (const svc of selectedServices) { const b = Math.min(left, Math.floor(svc.price_from * 0.3)); used += b; left -= b; }
+    return used;
+  })();
+  const totalToPay = totalFrom - bonusToUse;
 
   const handleSubmit = async () => {
     if (selectedServices.length === 0 || !selectedPetId || !address || !scheduledAt) return;
@@ -97,15 +141,20 @@ export default function OrderPage() {
     setLoading(true);
     setPayProcessing(true);
     try {
-      const orders = await Promise.all(
-        selectedServices.map((svc) => createOrder({
+      // По очереди, чтобы сервер корректно списывал бонусы с баланса
+      const orders: { id: number }[] = [];
+      for (const svc of selectedServices) {
+        orders.push(await createOrder({
           service_id: svc.id,
           pet_id: selectedPetId,
           address,
           scheduled_at: scheduledDate.toISOString(),
           notes,
-        }))
-      );
+          use_bonus: useBonus && bonusBalance > 0,
+          ai_triage: aiTriage,
+          voice_url: voiceUrl,
+        }));
+      }
       setCreatedOrderId(orders[0].id);
       // Show success after a short processing delay
       await new Promise(r => setTimeout(r, 1400));
@@ -144,7 +193,7 @@ export default function OrderPage() {
     size: 5 + Math.random() * 8,
     delay: Math.random() * 0.8,
     dur: 2.2 + Math.random() * 1.4,
-    color: ['#4ade80','#fbbf24','#60a5fa','#f472b6','#a78bfa','#34d399','#fb923c'][i % 7],
+    color: ['#7CB842','#C99A63','#60a5fa','#f472b6','#a78bfa','#7CB842','#fb923c'][i % 7],
     shape: i % 4 === 0 ? 'circle' : i % 4 === 1 ? 'rect' : i % 4 === 2 ? 'star' : 'rect',
     rotate: Math.random() * 360,
     rotateSpeed: (Math.random() - 0.5) * 720,
@@ -155,22 +204,22 @@ export default function OrderPage() {
     {/* ═══ PROCESSING OVERLAY ═══ */}
     {payProcessing && (
       <div className="fixed inset-0 z-[9000] flex flex-col items-center justify-center"
-        style={{ background: 'rgba(4,10,4,0.95)', backdropFilter: 'blur(12px)' }}>
+        style={{ background: 'rgba(23,15,10,0.95)', backdropFilter: 'blur(12px)' }}>
         <div className="relative flex items-center justify-center mb-8">
           {/* Outer ring */}
           <svg width="120" height="120" viewBox="0 0 120 120" style={{ animation: 'pay-spin 1.4s linear infinite', position: 'absolute' }}>
-            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(74,222,128,0.12)" strokeWidth="3"/>
-            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(74,222,128,0.8)" strokeWidth="3"
+            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(124,184,66,0.12)" strokeWidth="3"/>
+            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(124,184,66,0.8)" strokeWidth="3"
               strokeLinecap="round" strokeDasharray="60 280" strokeDashoffset="0"/>
           </svg>
           {/* Inner ring reverse */}
           <svg width="88" height="88" viewBox="0 0 88 88" style={{ animation: 'pay-spin-rev 2s linear infinite', position: 'absolute' }}>
-            <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(251,191,36,0.4)" strokeWidth="2"
+            <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(201,154,99,0.4)" strokeWidth="2"
               strokeLinecap="round" strokeDasharray="30 210"/>
           </svg>
           {/* Card icon center */}
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg,#0f2417,#0a3320)', border: '1px solid rgba(74,222,128,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="28" height="20" viewBox="0 0 28 20" fill="none" stroke="rgba(74,222,128,0.8)" strokeWidth="1.8" strokeLinecap="round">
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg,#33241A,#3A2A1D)', border: '1px solid rgba(124,184,66,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="28" height="20" viewBox="0 0 28 20" fill="none" stroke="rgba(124,184,66,0.8)" strokeWidth="1.8" strokeLinecap="round">
               <rect x="1" y="1" width="26" height="18" rx="3"/>
               <path d="M1 7h26M6 13h4"/>
             </svg>
@@ -197,7 +246,7 @@ export default function OrderPage() {
     {/* ═══ SUCCESS OVERLAY ═══ */}
     {paySuccess && (
       <div className="fixed inset-0 z-[9001] flex flex-col items-center justify-center overflow-hidden"
-        style={{ background: 'rgba(3,9,3,0.97)', backdropFilter: 'blur(16px)' }}>
+        style={{ background: 'rgba(22,14,9,0.97)', backdropFilter: 'blur(16px)' }}>
         {/* Confetti */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
           {confetti.map(p => (
@@ -211,20 +260,20 @@ export default function OrderPage() {
         </svg>
 
         {/* Glow backdrop */}
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(74,222,128,0.08) 0%, transparent 70%)' }}/>
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(124,184,66,0.08) 0%, transparent 70%)' }}/>
 
         {/* Checkmark circle */}
         <div className="relative mb-8" style={{ animation: 'success-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both' }}>
-          <div style={{ width: 120, height: 120, borderRadius: '50%', background: 'rgba(74,222,128,0.08)', border: '2px solid rgba(74,222,128,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+          <div style={{ width: 120, height: 120, borderRadius: '50%', background: 'rgba(124,184,66,0.08)', border: '2px solid rgba(124,184,66,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             {/* Outer pulse ring */}
-            <div style={{ position: 'absolute', inset: -12, borderRadius: '50%', border: '1.5px solid rgba(74,222,128,0.15)', animation: 'ring-pulse 2s ease-out 0.3s infinite' }}/>
-            <div style={{ position: 'absolute', inset: -24, borderRadius: '50%', border: '1px solid rgba(74,222,128,0.07)', animation: 'ring-pulse 2s ease-out 0.6s infinite' }}/>
+            <div style={{ position: 'absolute', inset: -12, borderRadius: '50%', border: '1.5px solid rgba(124,184,66,0.15)', animation: 'ring-pulse 2s ease-out 0.3s infinite' }}/>
+            <div style={{ position: 'absolute', inset: -24, borderRadius: '50%', border: '1px solid rgba(124,184,66,0.07)', animation: 'ring-pulse 2s ease-out 0.6s infinite' }}/>
             <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="26" stroke="rgba(74,222,128,0.3)" strokeWidth="2"/>
-              <circle cx="28" cy="28" r="26" stroke="#4ade80" strokeWidth="2.5"
+              <circle cx="28" cy="28" r="26" stroke="rgba(124,184,66,0.3)" strokeWidth="2"/>
+              <circle cx="28" cy="28" r="26" stroke="#7CB842" strokeWidth="2.5"
                 strokeLinecap="round" strokeDasharray="163"
                 style={{ animation: 'check-circle 0.7s ease 0.2s both', strokeDashoffset: 163 }}/>
-              <path d="M16 28l9 9 16-16" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+              <path d="M16 28l9 9 16-16" stroke="#7CB842" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                 style={{ animation: 'check-path 0.4s ease 0.8s both', strokeDasharray: 40, strokeDashoffset: 40 }}/>
             </svg>
           </div>
@@ -245,7 +294,7 @@ export default function OrderPage() {
 
         {/* Progress bar */}
         <div className="w-64 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-          <div className="h-full rounded-full transition-none" style={{ width: `${successProgress}%`, background: 'linear-gradient(90deg,#4ade80,#22c55e)', boxShadow: '0 0 8px rgba(74,222,128,0.5)', transition: 'width 0.06s linear' }}/>
+          <div className="h-full rounded-full transition-none" style={{ width: `${successProgress}%`, background: 'linear-gradient(90deg,#7CB842,#5E9E2C)', boxShadow: '0 0 8px rgba(124,184,66,0.5)', transition: 'width 0.06s linear' }}/>
         </div>
         <p className="text-white/20 text-xs mt-3">
           {lang === 'ar' ? 'جاري الانتقال...' : lang === 'tr' ? 'Yönlendiriliyor...' : lang === 'en' ? 'Redirecting...' : 'Переходим к отслеживанию...'}
@@ -267,7 +316,7 @@ export default function OrderPage() {
       </div>
     )}
 
-    <div className="min-h-screen bg-[#060d06] text-white pt-24 pb-20 px-4">
+    <div className="min-h-screen bg-[#1F150E] text-white pt-24 md:pt-[156px] pb-20 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-10">
@@ -296,13 +345,29 @@ export default function OrderPage() {
           ))}
         </div>
 
+        {/* ИИ-помощник: голосовой рассказ + первая помощь */}
+        {step === 1 && (
+          <VoiceTriage
+            petLabel={selectedPet ? `${selectedPet.name}, ${selectedPet.species}${selectedPet.breed ? ', ' + selectedPet.breed : ''}` : (pets.map((pt) => `${pt.name} (${pt.species})`).join('; '))}
+            onChange={(txt, tr, vu) => {
+              setAiTriage(tr);
+              setVoiceUrl(vu);
+              if (txt.trim()) { setNotes(txt); setNotesTouched(true); }
+            }}
+            onPickService={(name) => {
+              const svc = services.find((sv) => sv.name === name);
+              if (svc && !selectedServices.find((sv) => sv.id === svc.id)) setSelectedServices((prev) => [...prev, svc]);
+            }}
+          />
+        )}
+
         {/* Step 1 — Service */}
         {step === 1 && (
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-white">{t('order.selectServices')}</h2>
               {selectedServices.length > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: 'rgba(124,184,66,0.08)', border: '1px solid rgba(124,184,66,0.2)' }}>
                   <span className="text-green-400 text-xs font-bold">{selectedServices.length} {t('order.selected')}</span>
                   <span className="text-white/30 text-xs">·</span>
                   <span className="text-white/50 text-xs">{t('order.from')}{totalFrom.toLocaleString()} ₽</span>
@@ -315,7 +380,7 @@ export default function OrderPage() {
                 return (
                   <button key={svc.id} onClick={() => toggleService(svc)}
                     className="text-left p-5 rounded-2xl transition-all duration-200 relative overflow-hidden group"
-                    style={{ background: isSelected ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.04)', border: isSelected ? '1.5px solid rgba(74,222,128,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
+                    style={{ background: isSelected ? 'rgba(124,184,66,0.08)' : 'rgba(255,255,255,0.04)', border: isSelected ? '1.5px solid rgba(124,184,66,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
                     <span className={`absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${isSelected ? 'bg-green-400' : 'bg-white/5 border border-white/15'}`}>
                       {isSelected && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </span>
@@ -330,9 +395,9 @@ export default function OrderPage() {
                       <span className="text-[10px] text-white/25">{getMini(svc.name)}</span>
                       <Link to={`/service/${svc.id}`} onClick={(e) => e.stopPropagation()}
                         className="ml-2 flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 group/btn"
-                        style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.35)', color: 'rgba(251,191,36,0.9)', boxShadow: '0 0 8px rgba(251,191,36,0.1)' }}
-                        onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 16px rgba(251,191,36,0.35)')}
-                        onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 0 8px rgba(251,191,36,0.1)')}>
+                        style={{ background: 'rgba(201,154,99,0.12)', border: '1px solid rgba(201,154,99,0.35)', color: 'rgba(201,154,99,0.9)', boxShadow: '0 0 8px rgba(201,154,99,0.1)' }}
+                        onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 16px rgba(201,154,99,0.35)')}
+                        onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 0 8px rgba(201,154,99,0.1)')}>
                         {t('order.details')}
                         <svg className="w-2.5 h-2.5 transition-transform duration-300 group-hover/btn:translate-x-0.5" fill="none" viewBox="0 0 10 10"
                           style={{ transform: lang === 'ar' ? 'scaleX(-1)' : undefined }}>
@@ -345,12 +410,12 @@ export default function OrderPage() {
               })}
             </div>
             {selectedServices.length > 0 && (
-              <div className="mt-6 p-4 rounded-2xl flex items-center justify-between gap-4" style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)' }}>
+              <div className="mt-6 p-4 rounded-2xl flex items-center justify-between gap-4" style={{ background: 'rgba(124,184,66,0.06)', border: '1px solid rgba(124,184,66,0.2)' }}>
                 <div>
                   <div className="text-xs text-white/40 mb-1">{t('order.selectedCount')}{selectedServices.length}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedServices.map((s) => (
-                      <span key={s.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(74,222,128,0.12)', color: 'rgba(74,222,128,0.8)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                      <span key={s.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(124,184,66,0.12)', color: 'rgba(124,184,66,0.8)', border: '1px solid rgba(124,184,66,0.2)' }}>
                         <ServiceIcon name={s.name} size={14} className="inline-block mr-1.5 text-green-400/70" />{tName(s.name)}
                       </span>
                     ))}
@@ -376,7 +441,7 @@ export default function OrderPage() {
               {pets.map((pet) => (
                 <button key={pet.id} onClick={() => setSelectedPetId(pet.id)}
                   className="text-left p-5 rounded-2xl transition-all duration-200"
-                  style={{ background: selectedPetId === pet.id ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.04)', border: selectedPetId === pet.id ? '1.5px solid rgba(74,222,128,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
+                  style={{ background: selectedPetId === pet.id ? 'rgba(124,184,66,0.08)' : 'rgba(255,255,255,0.04)', border: selectedPetId === pet.id ? '1.5px solid rgba(124,184,66,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
                   <div className="text-2xl mb-2">
                     {pet.species === 'Кошка' || pet.species === 'Cat' || pet.species === 'Kedi' || pet.species === 'قطة' ? '🐱' : pet.species === 'Собака' || pet.species === 'Dog' || pet.species === 'Köpek' || pet.species === 'كلب' ? '🐶' : '🐾'}
                   </div>
@@ -431,7 +496,7 @@ export default function OrderPage() {
               </div>
               <div>
                 <label className="label">{t('order.notes')} <span className="text-white/20 font-normal">{t('order.scheduleOpt')}</span></label>
-                <textarea className="input resize-none" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('order.notesPh')} />
+                <textarea className="input resize-none" rows={4} value={notes} onChange={(e) => { setNotes(e.target.value); setNotesTouched(true); }} placeholder={t('order.notesPh')} />
               </div>
             </div>
             <div className="flex justify-between mt-8">
@@ -452,9 +517,9 @@ export default function OrderPage() {
                 <button key={m} onClick={() => setPayMethod(m)}
                   className="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200"
                   style={{
-                    background: payMethod === m ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
-                    border: payMethod === m ? '1.5px solid rgba(74,222,128,0.45)' : '1px solid rgba(255,255,255,0.08)',
-                    color: payMethod === m ? 'rgba(74,222,128,0.9)' : 'rgba(255,255,255,0.4)',
+                    background: payMethod === m ? 'rgba(124,184,66,0.1)' : 'rgba(255,255,255,0.04)',
+                    border: payMethod === m ? '1.5px solid rgba(124,184,66,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                    color: payMethod === m ? 'rgba(124,184,66,0.9)' : 'rgba(255,255,255,0.4)',
                   }}>
                   {m === 'card' && '💳 '}{m === 'cash' && '💵 '}{m === 'sbp' && '📱 '}
                   {t(`order.payment.${m}`)}
@@ -478,18 +543,18 @@ export default function OrderPage() {
                     <div style={{
                       position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
                       borderRadius: 20,
-                      background: 'linear-gradient(135deg, #0f2417 0%, #0a3320 40%, #0f2d1a 70%, #071a0e 100%)',
-                      boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,222,128,0.1)',
+                      background: 'linear-gradient(135deg, #33241A 0%, #3A2A1D 40%, #0f2d1a 70%, #22170F 100%)',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,184,66,0.1)',
                       padding: '24px 28px',
                       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                       overflow: 'hidden',
                     }}>
                       {/* Gloss */}
-                      <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(74,222,128,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+                      <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,184,66,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
                       {/* Top row */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <div style={{ width: 34, height: 26, borderRadius: 6, background: 'linear-gradient(135deg, #f8c84a, #e8a020)', opacity: 0.9 }} />
+                          <div style={{ width: 34, height: 26, borderRadius: 6, background: 'linear-gradient(135deg, #DBB685, #B07F48)', opacity: 0.9 }} />
                         </div>
                         <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 700, letterSpacing: 2 }}>{brand.icon || brand.label}</div>
                       </div>
@@ -516,7 +581,7 @@ export default function OrderPage() {
                     <div style={{
                       position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
                       borderRadius: 20,
-                      background: 'linear-gradient(135deg, #071a0e 0%, #0a2d1a 60%, #0f2417 100%)',
+                      background: 'linear-gradient(135deg, #22170F 0%, #0a2d1a 60%, #33241A 100%)',
                       boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
                       transform: 'rotateY(180deg)',
                       overflow: 'hidden',
@@ -524,7 +589,7 @@ export default function OrderPage() {
                       <div style={{ height: 48, background: 'rgba(0,0,0,0.55)', marginTop: 28 }} />
                       <div style={{ padding: '20px 28px 0', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
                         <div style={{ flex: 1, height: 36, background: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 8px, transparent 8px, transparent 12px)', borderRadius: 4 }} />
-                        <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 6, padding: '6px 14px', fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: '#0a1a0a', minWidth: 60, textAlign: 'center' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 6, padding: '6px 14px', fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: '#2A1D14', minWidth: 60, textAlign: 'center' }}>
                           {cardCvv || '•••'}
                         </div>
                       </div>
@@ -577,8 +642,8 @@ export default function OrderPage() {
                 </div>
 
                 {/* Demo notice */}
-                <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(251,191,36,0.7)" strokeWidth="1.5" strokeLinecap="round"><circle cx="7" cy="7" r="6"/><path d="M7 5v2.5"/><circle cx="7" cy="10" r=".6" fill="rgba(251,191,36,0.7)"/></svg>
+                <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: 'rgba(201,154,99,0.06)', border: '1px solid rgba(201,154,99,0.15)' }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(201,154,99,0.7)" strokeWidth="1.5" strokeLinecap="round"><circle cx="7" cy="7" r="6"/><path d="M7 5v2.5"/><circle cx="7" cy="10" r=".6" fill="rgba(201,154,99,0.7)"/></svg>
                   <span className="text-amber-400/60 text-xs">{t('order.payment.demo')}</span>
                 </div>
               </>
@@ -602,7 +667,7 @@ export default function OrderPage() {
 
             {/* Secure badge */}
             <div className="flex items-center justify-center gap-2 mt-6 mb-8">
-              <svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="rgba(74,222,128,0.4)" strokeWidth="1.4" strokeLinecap="round"><path d="M6.5 1L1 3.5v4c0 3 2.5 5.5 5.5 6.3C9 12.5 12 10 12 7V3.5z"/><path d="M4 7.5l2 2 3-3"/></svg>
+              <svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="rgba(124,184,66,0.4)" strokeWidth="1.4" strokeLinecap="round"><path d="M6.5 1L1 3.5v4c0 3 2.5 5.5 5.5 6.3C9 12.5 12 10 12 7V3.5z"/><path d="M4 7.5l2 2 3-3"/></svg>
               <span className="text-green-400/40 text-xs">{t('order.payment.secure')}</span>
             </div>
 
@@ -652,7 +717,39 @@ export default function OrderPage() {
                 {t('order.multiNote')}
               </div>
             )}
-            <div className="rounded-2xl p-5 mb-6" style={{ background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.15)' }}>
+            {aiTriage && (
+              <div className="rounded-2xl p-5 mb-4 border border-green-400/30 bg-green-500/[0.07]">
+                <div className="text-xs font-bold uppercase tracking-wider text-green-300 mb-1">Врач получит заранее</div>
+                <p className="text-sm text-white/85">«{notes}»</p>
+                {voiceUrl && <p className="text-xs text-green-200 mt-1">🎧 + ваше голосовое сообщение</p>}
+                <p className="text-xs text-white/55 mt-2">Оценка ИИ: {aiTriage.summary}</p>
+              </div>
+            )}
+            {bonusBalance > 0 && (
+              <button type="button" onClick={() => setUseBonus(!useBonus)}
+                className={`w-full text-left rounded-2xl p-5 mb-4 border-2 transition-colors ${useBonus ? 'bg-[#FACC15]/10 border-[#FACC15]/60' : 'bg-white/[0.03] border-white/10'}`}>
+                <div className="flex items-center gap-4">
+                  <span className={`w-11 h-6 rounded-full relative transition-colors flex-shrink-0 ${useBonus ? 'bg-[#FACC15]' : 'bg-white/20'}`}>
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${useBonus ? 'left-[22px]' : 'left-0.5'}`} />
+                  </span>
+                  <div className="flex-1">
+                    <div className="text-white font-bold text-sm">Оплатить бонусами — до 30% стоимости</div>
+                    <div className="text-white/50 text-xs">На счёте {bonusBalance.toLocaleString('ru-RU')} бонусов · 1 бонус = 1 ₽</div>
+                  </div>
+                  {useBonus && bonusToUse > 0 && <div className="text-[#FACC15] font-black">−{bonusToUse.toLocaleString('ru-RU')} ₽</div>}
+                </div>
+                {useBonus && bonusToUse > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/10 flex justify-between text-sm">
+                    <span className="text-white/60">К оплате после визита</span>
+                    <span className="text-white font-black">
+                      <span className="line-through text-white/35 font-normal mr-2">{totalFrom.toLocaleString('ru-RU')} ₽</span>
+                      {totalToPay.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
+                )}
+              </button>
+            )}
+            <div className="rounded-2xl p-5 mb-6" style={{ background: 'rgba(124,184,66,0.05)', border: '1px solid rgba(124,184,66,0.15)' }}>
               <p className="text-white/70 text-sm"><span className="text-green-400 font-bold">{t('order.nextStep')}</span> {t('order.nextStepDesc')}</p>
             </div>
             <div className="flex justify-between">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getOrders } from '../api';
 import { useTranslation } from 'react-i18next';
 import ServiceIcon from '../components/ServiceIcon';
@@ -13,14 +13,15 @@ export default function HistoryPage() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const statusMap = () => ({
-    pending:     { label: t('history.statuses.searching'), color: 'text-amber-400', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
+    pending:     { label: t('history.statuses.searching'), color: 'text-amber-400', bg: 'rgba(201,154,99,0.08)', border: 'rgba(201,154,99,0.2)' },
     confirmed:   { label: t('history.statuses.confirmed'), color: 'text-teal-400',  bg: 'rgba(45,212,191,0.08)',  border: 'rgba(45,212,191,0.2)' },
     on_the_way:  { label: t('history.statuses.coming'),    color: 'text-blue-400',  bg: 'rgba(96,165,250,0.08)',  border: 'rgba(96,165,250,0.2)' },
     arrived:     { label: t('history.statuses.arrived'),   color: 'text-purple-400',bg: 'rgba(192,132,252,0.08)', border: 'rgba(192,132,252,0.2)' },
-    in_progress: { label: t('history.statuses.examining'), color: 'text-green-400', bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.2)' },
-    completed:   { label: t('history.statuses.done'),      color: 'text-green-400', bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.2)' },
+    in_progress: { label: t('history.statuses.examining'), color: 'text-green-400', bg: 'rgba(124,184,66,0.08)',  border: 'rgba(124,184,66,0.2)' },
+    completed:   { label: t('history.statuses.done'),      color: 'text-green-400', bg: 'rgba(124,184,66,0.08)',  border: 'rgba(124,184,66,0.2)' },
     cancelled:   { label: t('history.statuses.cancelled'), color: 'text-red-400',   bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)' },
   });
 
@@ -30,7 +31,7 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#060d06] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1F150E] flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
       </div>
     );
@@ -39,7 +40,7 @@ export default function HistoryPage() {
   const sm = statusMap();
 
   return (
-    <div className="min-h-screen bg-[#060d06] py-24 px-4">
+    <div className="min-h-screen bg-[#1F150E] pt-24 md:pt-[156px] pb-24 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -72,7 +73,7 @@ export default function HistoryPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex gap-4 items-start">
                       <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-green-400/70"
-                        style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.15)' }}>
+                        style={{ background: 'rgba(124,184,66,0.08)', border: '1px solid rgba(124,184,66,0.15)' }}>
                         <ServiceIcon name={order.service_name} size={20} />
                       </div>
                       <div>
@@ -88,6 +89,14 @@ export default function HistoryPage() {
                         {st.label}
                       </span>
                       <div className="text-sm font-bold text-white/60 mt-2">{order.total_price?.toLocaleString()} ₽</div>
+                      {order.status === 'completed' && order.vet_name && (
+                        <span role="button" tabIndex={0}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/chat/${order.id}`); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); navigate(`/chat/${order.id}`); } }}
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-400 text-white cursor-pointer">
+                          💬 Написать ветеринару
+                        </span>
+                      )}
                       {isActive && (
                         <div className="text-xs text-green-400 font-medium mt-1 flex items-center justify-end gap-1">
                           <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />

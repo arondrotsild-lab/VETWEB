@@ -94,7 +94,7 @@ export default {
       cardNumber: 'رقم البطاقة', cardName: 'اسم حامل البطاقة', cardExpiry: 'تاريخ الانتهاء', cardCvv: 'CVV',
       cardNumberPh: '0000 0000 0000 0000', cardNamePh: 'IVAN PETROV', expiryPh: 'شش/سس', cvvPh: '•••',
       pay: 'المتابعة إلى التأكيد →', secure: 'دفع آمن · SSL 256-bit',
-      demo: 'وضع تجريبي — لا يتم خصم حقيقي',
+      demo: 'الدفع بعد الزيارة — لا يتم الخصم الآن',
       cashNote: 'ادفع للطبيب البيطري نقداً بعد الخدمة. بدون رسوم.',
       sbpNote: 'حوّل الدفع إلى رقم هاتف الطبيب البيطري بعد الزيارة.',
       cardHolder: 'حامل البطاقة', expires: 'صالحة حتى',

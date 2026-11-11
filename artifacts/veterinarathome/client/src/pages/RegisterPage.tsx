@@ -23,7 +23,7 @@ export default function RegisterPage() {
     if (owner.password.length < 6) { setError(t('register.errPassShort')); return; }
     setLoading(true);
     try {
-      const data = await apiRegister({ name: owner.name, phone: owner.phone, email: owner.email, password: owner.password, telegram_nick: owner.telegram_nick || undefined });
+      const data = await apiRegister({ name: owner.name, phone: owner.phone, email: owner.email, password: owner.password, telegram_nick: owner.telegram_nick || undefined, ref: new URLSearchParams(window.location.search).get('ref') || undefined });
       login(data.token, data.user);
       setStep(2);
     } catch (err: unknown) {
@@ -63,19 +63,19 @@ export default function RegisterPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#060d06] flex items-center justify-center py-12 px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#1F150E] flex items-center justify-center py-12 px-4 relative overflow-hidden">
       {loading && step === 2 && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#020702]/80 px-5 backdrop-blur-md"
           role="status"
           aria-live="polite"
         >
-          <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-green-400/20 bg-[#0b160c] px-7 py-9 text-center shadow-[0_0_80px_rgba(74,222,128,0.15)]">
+          <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-green-400/20 bg-[#0b160c] px-7 py-9 text-center shadow-[0_0_80px_rgba(124,184,66,0.15)]">
             <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-green-400/80 to-transparent" />
             <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
               <div className="absolute inset-0 animate-ping rounded-full border border-green-400/20" />
               <div className="absolute inset-2 animate-pulse rounded-full bg-green-400/10 blur-md" />
-              <div className="relative flex h-16 w-16 animate-pulse items-center justify-center rounded-full border border-green-400/40 bg-green-400/10 text-3xl shadow-[0_0_30px_rgba(74,222,128,0.2)]">
+              <div className="relative flex h-16 w-16 animate-pulse items-center justify-center rounded-full border border-green-400/40 bg-green-400/10 text-3xl shadow-[0_0_30px_rgba(124,184,66,0.2)]">
                 🐾
               </div>
             </div>

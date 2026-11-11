@@ -94,7 +94,7 @@ export default {
       cardNumber: 'Card Number', cardName: 'Cardholder Name', cardExpiry: 'Expires', cardCvv: 'CVV',
       cardNumberPh: '0000 0000 0000 0000', cardNamePh: 'IVAN PETROV', expiryPh: 'MM/YY', cvvPh: '•••',
       pay: 'Proceed to Confirmation →', secure: 'Secured payment · SSL 256-bit',
-      demo: 'Demo mode — no real charge is made',
+      demo: 'Pay after the visit — no charge now',
       cashNote: 'Pay the vet in cash after the service. No fees.',
       sbpNote: 'Transfer payment to the vet\'s phone number after the visit.',
       cardHolder: 'CARDHOLDER', expires: 'EXPIRES',

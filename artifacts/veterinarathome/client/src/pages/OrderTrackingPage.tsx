@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { getOrder } from '../api';
 import { useTranslation } from 'react-i18next';
 import ServiceIcon from '../components/ServiceIcon';
+import LiveMap, { PHASE_MS } from '../components/LiveMap';
+import { VoiceBubble } from '../components/VoiceMessage';
 import { getSvcName } from '../utils/serviceNames';
 import i18n from '../i18n';
 
@@ -14,6 +16,8 @@ interface Order {
   vet_name?: string; vet_photo_url?: string; vet_specialization?: string;
   vet_experience_years?: number; vet_rating?: number | string; vet_reviews_count?: number;
   total_price: number; notes?: string; created_at: string;
+  voice_url?: string | null;
+  ai_triage?: { urgency: string; summary: string; do_now: string[]; dont: string[]; possible_causes: string } | null;
   history: OrderStatus[];
 }
 
@@ -57,25 +61,25 @@ function DemoMap({ status }: { status: string }) {
   ];
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#0a160a]">
+    <div className="relative h-full w-full overflow-hidden bg-[#261A11]">
       <svg className="absolute inset-0 h-full w-full opacity-70" viewBox="0 0 800 420" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M-40 330 C130 250 220 280 350 180 S610 80 850 125" fill="none" stroke="#1b331d" strokeWidth="24" />
-        <path d="M-40 330 C130 250 220 280 350 180 S610 80 850 125" fill="none" stroke="#345338" strokeWidth="2" strokeDasharray="9 10" />
-        <path d="M110 -20 C145 100 250 130 290 250 S410 390 500 440" fill="none" stroke="#162b18" strokeWidth="18" />
-        <path d="M110 -20 C145 100 250 130 290 250 S410 390 500 440" fill="none" stroke="#2c4930" strokeWidth="2" />
-        <path d="M600 -20 C560 110 610 180 520 260 S390 345 300 440" fill="none" stroke="#162b18" strokeWidth="14" />
-        <path d="M600 -20 C560 110 610 180 520 260 S390 345 300 440" fill="none" stroke="#29452d" strokeWidth="2" />
+        <path d="M-40 330 C130 250 220 280 350 180 S610 80 850 125" fill="none" stroke="#3B2B1F" strokeWidth="24" />
+        <path d="M-40 330 C130 250 220 280 350 180 S610 80 850 125" fill="none" stroke="#5A4331" strokeWidth="2" strokeDasharray="9 10" />
+        <path d="M110 -20 C145 100 250 130 290 250 S410 390 500 440" fill="none" stroke="#35261B" strokeWidth="18" />
+        <path d="M110 -20 C145 100 250 130 290 250 S410 390 500 440" fill="none" stroke="#4E3A2A" strokeWidth="2" />
+        <path d="M600 -20 C560 110 610 180 520 260 S390 345 300 440" fill="none" stroke="#35261B" strokeWidth="14" />
+        <path d="M600 -20 C560 110 610 180 520 260 S390 345 300 440" fill="none" stroke="#4A3728" strokeWidth="2" />
         {!searching && (
-          <path d="M576 90 C520 130 445 165 385 220 S300 275 235 300" fill="none" stroke="#4ade80" strokeWidth="4" strokeDasharray="7 8" opacity=".8" />
+          <path d="M576 90 C520 130 445 165 385 220 S300 275 235 300" fill="none" stroke="#7CB842" strokeWidth="4" strokeDasharray="7 8" opacity=".8" />
         )}
       </svg>
 
       <div className="absolute left-[26%] top-[70%] -translate-x-1/2 -translate-y-1/2 text-center">
-        <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-green-400 text-lg shadow-[0_0_24px_rgba(74,222,128,.5)]">
+        <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-green-400 text-lg shadow-[0_0_24px_rgba(124,184,66,.5)]">
           🏠
           <span className="absolute inset-[-7px] animate-ping rounded-full border border-green-400/40" />
         </div>
-        <span className="mt-1.5 inline-block rounded-full bg-[#061006]/90 px-2.5 py-1 text-[10px] font-bold text-white/80">Вы здесь</span>
+        <span className="mt-1.5 inline-block rounded-full bg-[#1C130C]/90 px-2.5 py-1 text-[10px] font-bold text-white/80">Вы здесь</span>
       </div>
 
       {searching && vets.map((vet, index) => (
@@ -93,13 +97,13 @@ function DemoMap({ status }: { status: string }) {
           style={{ left: arrived ? '29%' : moving ? '47%' : '72%', top: arrived ? '65%' : moving ? '48%' : '22%' }}
         >
           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-blue-500 text-lg shadow-[0_0_24px_rgba(96,165,250,.45)]">🚗</div>
-          <span className="mt-1 inline-block whitespace-nowrap rounded-full bg-[#061006]/90 px-2 py-1 text-[9px] font-bold text-white/75">
+          <span className="mt-1 inline-block whitespace-nowrap rounded-full bg-[#1C130C]/90 px-2 py-1 text-[9px] font-bold text-white/75">
             {arrived ? 'Ветеринар прибыл' : moving ? 'Едет к вам' : 'Вызов принят'}
           </span>
         </div>
       )}
 
-      <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#061006]/85 px-4 py-2 text-center backdrop-blur-md">
+      <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#1C130C]/85 px-4 py-2 text-center backdrop-blur-md">
         {searching ? (
           <>
             <SearchingLabel className="text-xs font-black text-amber-300" />
@@ -188,21 +192,21 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 
 /* ─── Dark map style ───────────────────────────────────── */
 const DARK_STYLE = [
-  { elementType:'geometry',            stylers:[{ color:'#0a160a' }] },
-  { elementType:'labels.text.stroke',  stylers:[{ color:'#0a160a' }] },
-  { elementType:'labels.text.fill',    stylers:[{ color:'#4a5c4a' }] },
+  { elementType:'geometry',            stylers:[{ color:'#261A11' }] },
+  { elementType:'labels.text.stroke',  stylers:[{ color:'#261A11' }] },
+  { elementType:'labels.text.fill',    stylers:[{ color:'#6B5544' }] },
   { featureType:'road',                elementType:'geometry', stylers:[{ color:'#152215' }] },
-  { featureType:'road',                elementType:'geometry.stroke', stylers:[{ color:'#1a2e1a' }] },
-  { featureType:'road',                elementType:'labels.text.fill', stylers:[{ color:'#3a5c3a' }] },
-  { featureType:'road.highway',        elementType:'geometry', stylers:[{ color:'#1e381e' }] },
-  { featureType:'road.highway',        elementType:'labels.text.fill', stylers:[{ color:'#4a7c4a' }] },
-  { featureType:'water',               elementType:'geometry', stylers:[{ color:'#060d06' }] },
-  { featureType:'water',               elementType:'labels.text.fill', stylers:[{ color:'#1a3a1a' }] },
+  { featureType:'road',                elementType:'geometry.stroke', stylers:[{ color:'#3A2A1E' }] },
+  { featureType:'road',                elementType:'labels.text.fill', stylers:[{ color:'#5F4734' }] },
+  { featureType:'road.highway',        elementType:'geometry', stylers:[{ color:'#3F2E21' }] },
+  { featureType:'road.highway',        elementType:'labels.text.fill', stylers:[{ color:'#5E8F3A' }] },
+  { featureType:'water',               elementType:'geometry', stylers:[{ color:'#1F150E' }] },
+  { featureType:'water',               elementType:'labels.text.fill', stylers:[{ color:'#40301F' }] },
   { featureType:'poi',                 stylers:[{ visibility:'off' }] },
   { featureType:'poi.park',            elementType:'geometry', stylers:[{ color:'#0d1f0d' }, { visibility:'on' }] },
   { featureType:'transit',             stylers:[{ visibility:'off' }] },
-  { featureType:'administrative',      elementType:'geometry', stylers:[{ color:'#1a2e1a' }] },
-  { featureType:'administrative.locality', elementType:'labels.text.fill', stylers:[{ color:'#3a6a3a' }] },
+  { featureType:'administrative',      elementType:'geometry', stylers:[{ color:'#3A2A1E' }] },
+  { featureType:'administrative.locality', elementType:'labels.text.fill', stylers:[{ color:'#4A7A2C' }] },
   { featureType:'landscape',           elementType:'geometry', stylers:[{ color:'#0c1a0c' }] },
 ];
 
@@ -211,9 +215,9 @@ const HOME_SVG = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
 <svg width="44" height="52" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
   <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.6)"/></filter>
   <g filter="url(#s)">
-    <circle cx="22" cy="22" r="20" fill="rgba(74,222,128,0.9)" stroke="white" stroke-width="2.5"/>
+    <circle cx="22" cy="22" r="20" fill="rgba(124,184,66,0.9)" stroke="white" stroke-width="2.5"/>
     <path d="M22 8L8 19v17h10v-9h8v9h10V19z" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M22 48 L18 36 L22 40 L26 36 Z" fill="rgba(74,222,128,0.9)"/>
+    <path d="M22 48 L18 36 L22 40 L26 36 Z" fill="rgba(124,184,66,0.9)"/>
   </g>
   <circle cx="22" cy="22" r="4" fill="white" opacity="0.9"/>
 </svg>`)}`;
@@ -224,15 +228,15 @@ function carSVG(bearing: number) {
   <filter id="g"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   <g filter="url(#g)" transform="rotate(${bearing + 90} 20 20)">
     <ellipse cx="21" cy="21" rx="9" ry="12" fill="rgba(0,0,0,0.35)"/>
-    <rect x="11" y="8" width="18" height="26" rx="6" fill="#22c55e"/>
-    <rect x="13.5" y="10" width="13" height="13" rx="3" fill="rgba(6,40,6,0.85)"/>
+    <rect x="11" y="8" width="18" height="26" rx="6" fill="#5E9E2C"/>
+    <rect x="13.5" y="10" width="13" height="13" rx="3" fill="rgba(45,30,20,0.85)"/>
     <rect x="12" y="7" width="6" height="3" rx="1.5" fill="rgba(255,255,200,0.95)"/>
     <rect x="22" y="7" width="6" height="3" rx="1.5" fill="rgba(255,255,200,0.95)"/>
     <rect x="12" y="32" width="6" height="3" rx="1.5" fill="rgba(248,113,113,0.9)"/>
     <rect x="22" y="32" width="6" height="3" rx="1.5" fill="rgba(248,113,113,0.9)"/>
-    <circle cx="20" cy="20" r="3" fill="rgba(74,222,128,0.4)"/>
+    <circle cx="20" cy="20" r="3" fill="rgba(124,184,66,0.4)"/>
   </g>
-  <circle cx="20" cy="20" r="18" fill="rgba(74,222,128,0.12)" stroke="rgba(74,222,128,0.5)" stroke-width="1.5"/>
+  <circle cx="20" cy="20" r="18" fill="rgba(124,184,66,0.12)" stroke="rgba(124,184,66,0.5)" stroke-width="1.5"/>
 </svg>`)}`;
 }
 
@@ -276,7 +280,7 @@ function GoogleMap({ progress, status, bearing, carPos }: MapProps) {
       routeLine.current = new g.Polyline({
         path: WAYPOINTS,
         map,
-        strokeColor: 'rgba(74,222,128,0.25)',
+        strokeColor: 'rgba(124,184,66,0.25)',
         strokeWeight: 3,
         strokeOpacity: 0,
         icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.5, scale: 4 }, offset: '0', repeat: '12px' }],
@@ -287,7 +291,7 @@ function GoogleMap({ progress, status, bearing, carPos }: MapProps) {
       travelLine.current = new g.Polyline({
         path: [],
         map,
-        strokeColor: 'rgba(74,222,128,0.8)',
+        strokeColor: 'rgba(124,184,66,0.8)',
         strokeWeight: 4,
         strokeOpacity: 1,
         zIndex: 2,
@@ -366,12 +370,12 @@ function GoogleMap({ progress, status, bearing, carPos }: MapProps) {
 /* ─── Status config ────────────────────────────────────── */
 const STATUS_STEPS = ['pending','confirmed','on_the_way','arrived','in_progress','completed'];
 const STATUS_META: Record<string, { label: string; sub: string; color: string }> = {
-  pending:     { label:'Ищем ветеринара',         sub:'Подбираем специалиста рядом с вами',           color:'#fbbf24' },
+  pending:     { label:'Ищем ветеринара',         sub:'Подбираем специалиста рядом с вами',           color:'#C99A63' },
   confirmed:   { label:'Врач найден',             sub:'Специалист подтвердил вызов',                  color:'#2dd4bf' },
   on_the_way:  { label:'Ветеринар едет к вам',   sub:'Следите за машиной на карте',                  color:'#60a5fa' },
   arrived:     { label:'Врач прибыл',             sub:'Откройте дверь — ветеринар у вашего дома',     color:'#c084fc' },
-  in_progress: { label:'Идёт приём',              sub:'Ветеринар осматривает питомца',                color:'#4ade80' },
-  completed:   { label:'Приём завершён',           sub:'Спасибо! Питомец в безопасности',              color:'#4ade80' },
+  in_progress: { label:'Идёт приём',              sub:'Ветеринар осматривает питомца',                color:'#7CB842' },
+  completed:   { label:'Приём завершён',           sub:'Спасибо! Питомец в безопасности',              color:'#7CB842' },
   cancelled:   { label:'Заказ отменён',            sub:'Обратитесь в поддержку если нужна помощь',    color:'#f87171' },
 };
 const STEP_LABELS: Record<string,string> = {
@@ -417,6 +421,7 @@ export default function OrderTrackingPage() {
   const [order, setOrder]   = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
+  const [replay, setReplay] = useState(0);
 
   const fetchOrder = useCallback(async () => {
     try { const data = await getOrder(Number(id)); setOrder(data); }
@@ -431,32 +436,20 @@ export default function OrderTrackingPage() {
   }, [fetchOrder]);
 
   useEffect(() => {
-    if (!order || order.status !== 'pending' || order.vet_name) {
+    if (!order || (replay === 0 && (order.status !== 'pending' || order.vet_name))) {
       setDemoStatus(null);
       return;
     }
     const statuses = ['pending', 'confirmed', 'on_the_way', 'arrived', 'in_progress', 'completed'];
-    let index = 0;
-    setDemoStatus(statuses[index]);
-    const first = window.setTimeout(() => {
-      index = 1;
-      setDemoStatus(statuses[index]);
-      const interval = window.setInterval(() => {
-        index += 1;
-        if (index >= statuses.length) {
-          window.clearInterval(interval);
-          return;
-        }
-        setDemoStatus(statuses[index]);
-      }, 5000);
-      (window as Window & { __vetDemoInterval?: number }).__vetDemoInterval = interval;
-    }, 4000);
-    return () => {
-      window.clearTimeout(first);
-      const interval = (window as Window & { __vetDemoInterval?: number }).__vetDemoInterval;
-      if (interval) window.clearInterval(interval);
-    };
-  }, [order?.id, order?.status, order?.vet_name]);
+    const timers: number[] = [];
+    let at = 0;
+    setDemoStatus(statuses[0]);
+    statuses.slice(0, -1).forEach((st, i) => {
+      at += PHASE_MS[st];
+      timers.push(window.setTimeout(() => setDemoStatus(statuses[i + 1]), at));
+    });
+    return () => timers.forEach((tm) => window.clearTimeout(tm));
+  }, [order?.id, order?.status, order?.vet_name, replay]);
 
   const currentStatus = demoStatus ?? order?.status ?? '';
   const etaSec   = useETA(currentStatus, order?.id ?? 0);
@@ -466,13 +459,13 @@ export default function OrderTrackingPage() {
   const bearing  = carPosRaw.bearing;
 
   if (loading) return (
-    <div className="min-h-screen bg-[#060d06] flex items-center justify-center">
+    <div className="min-h-screen bg-[#1F150E] flex items-center justify-center">
       <div className="w-10 h-10 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin"/>
     </div>
   );
 
   if (!order) return (
-    <div className="min-h-screen bg-[#060d06] flex items-center justify-center">
+    <div className="min-h-screen bg-[#1F150E] flex items-center justify-center">
       <div className="text-center">
         <p className="text-white/40 text-lg mb-4">{t('tracking.notFound')}</p>
         <Link to="/history" className="btn-gold inline-block">{t('history.title')}</Link>
@@ -492,40 +485,38 @@ export default function OrderTrackingPage() {
   const vetReviews = order.vet_reviews_count || DEMO_VET.reviews;
 
   return (
-    <div className="min-h-screen bg-[#060d06] flex flex-col">
+    <div className="min-h-screen bg-[#1F150E] flex flex-col">
 
       {/* ════ MAP ════ */}
       {showMap && (
-        <div className="relative w-full" style={{ height:'55vh', minHeight:280, maxHeight:460 }}>
-          <GoogleMap progress={progress} status={currentStatus} bearing={bearing} carPos={carPos}/>
+        <div className="relative w-full mt-16 md:mt-[136px]" style={{ height:'62vh', minHeight:340, maxHeight:580 }}>
+          <LiveMap status={currentStatus} vetName={vetName || DEMO_VET.name} vetPhoto={vetPhoto} petName={order.pet_name} amount={order.total_price}/>
 
           {/* top gradient + back */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-4 pointer-events-none"
-            style={{ background:'linear-gradient(to bottom,rgba(6,13,6,0.85),transparent)' }}>
+            style={{ background:'linear-gradient(to bottom,rgba(31,21,14,0.85),transparent)' }}>
             <Link to="/history" className="pointer-events-auto flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background:'rgba(6,13,6,0.7)', border:'1px solid rgba(255,255,255,0.08)' }}>
+              style={{ background:'rgba(31,21,14,0.7)', border:'1px solid rgba(255,255,255,0.08)' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
               Назад
             </Link>
-            <div className="px-3 py-1.5 rounded-full text-xs font-bold text-white/50"
-              style={{ background:'rgba(6,13,6,0.7)', border:'1px solid rgba(255,255,255,0.08)' }}>
-              Заказ #{order.id}
+            <div className="flex items-center gap-2">
+              <button onClick={() => setReplay((r) => r + 1)}
+                className="pointer-events-auto px-3 py-1.5 rounded-full text-xs font-bold text-white/80 hover:text-white transition-colors"
+                style={{ background:'rgba(31,21,14,0.75)', border:'1px solid rgba(255,255,255,0.12)' }}>
+                ▶ Показать путь врача заново
+              </button>
+              <div className="px-3 py-1.5 rounded-full text-xs font-bold text-white/60"
+                style={{ background:'rgba(31,21,14,0.7)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                Заказ #{order.id}
+              </div>
             </div>
           </div>
 
           {/* bottom gradient + status */}
           <div className="absolute bottom-0 left-0 right-0 pointer-events-none"
-            style={{ background:'linear-gradient(to top,rgba(6,13,6,1) 45%,transparent)' }}>
+            style={{ background:'linear-gradient(to top,rgba(31,21,14,0.95) 0%,rgba(31,21,14,0.6) 55%,transparent 100%)' }}>
             <div className="px-4 pb-5 pt-8">
-              {isMoving && etaSec > 0 && (
-                <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1.5 rounded-full text-xs font-black"
-                  style={{ background:'rgba(96,165,250,0.15)', border:'1px solid rgba(96,165,250,0.35)', color:'#93c5fd' }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>
-                  </svg>
-                  Прибудет через {fmtETA(etaSec)}
-                </div>
-              )}
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: meta.color }}/>
@@ -549,8 +540,8 @@ export default function OrderTrackingPage() {
 
       {/* No-map header for completed/cancelled */}
       {!showMap && (
-        <div className="pt-28 pb-8 px-4"
-          style={{ background: order.status==='completed' ? 'rgba(74,222,128,0.06)' : 'rgba(248,113,113,0.06)' }}>
+        <div className="pt-24 md:pt-[156px] pb-8 px-4"
+          style={{ background: order.status==='completed' ? 'rgba(124,184,66,0.06)' : 'rgba(248,113,113,0.06)' }}>
           <div className="max-w-2xl mx-auto flex items-center gap-4">
             <Link to="/history" className="text-white/30 hover:text-white/70 transition-colors text-sm mr-2">← Назад</Link>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -577,7 +568,7 @@ export default function OrderTrackingPage() {
             <div className="relative flex items-start justify-between">
               <div className="absolute top-4 left-4 right-4 h-px bg-white/6"/>
               <div className="absolute top-4 left-4 h-px transition-all duration-700"
-                style={{ background:'rgba(74,222,128,0.5)', width:`${(STATUS_STEPS.indexOf(order.status)/(STATUS_STEPS.length-1))*100}%`, maxWidth:'calc(100% - 2rem)' }}/>
+                style={{ background:'rgba(124,184,66,0.5)', width:`${(STATUS_STEPS.indexOf(order.status)/(STATUS_STEPS.length-1))*100}%`, maxWidth:'calc(100% - 2rem)' }}/>
               {STATUS_STEPS.map((s, i) => {
                 const done = STATUS_STEPS.indexOf(currentStatus) >= i;
                 const cur  = currentStatus === s;
@@ -585,18 +576,18 @@ export default function OrderTrackingPage() {
                   <div key={s} className="flex flex-col items-center gap-1.5 relative z-10 flex-1">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500"
                       style={cur
-                        ? { background:'rgba(74,222,128,0.15)', border:'2px solid rgba(74,222,128,0.9)', boxShadow:'0 0 14px rgba(74,222,128,0.4)' }
+                        ? { background:'rgba(124,184,66,0.15)', border:'2px solid rgba(124,184,66,0.9)', boxShadow:'0 0 14px rgba(124,184,66,0.4)' }
                         : done
-                        ? { background:'rgba(74,222,128,0.9)' }
+                        ? { background:'rgba(124,184,66,0.9)' }
                         : { background:'rgba(255,255,255,0.04)', border:'1.5px solid rgba(255,255,255,0.1)' }}>
                       {done && !cur
-                        ? <svg width="12" height="12" fill="none" stroke="#060d06" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5 6.5-6"/></svg>
+                        ? <svg width="12" height="12" fill="none" stroke="#1F150E" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5 6.5-6"/></svg>
                         : cur
                         ? <div className="w-2.5 h-2.5 rounded-full bg-green-400" style={{ animation:'sRing 1s ease-out infinite' }}/>
                         : <div className="w-2 h-2 rounded-full bg-white/10"/>}
                     </div>
                     <span className="text-[9px] text-center leading-tight font-semibold hidden sm:block"
-                      style={{ color: cur ? 'rgba(74,222,128,0.9)' : done ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)' }}>
+                      style={{ color: cur ? 'rgba(124,184,66,0.9)' : done ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)' }}>
                       {STEP_LABELS[s]}
                     </span>
                   </div>
@@ -610,7 +601,7 @@ export default function OrderTrackingPage() {
         {/* Vet card */}
         {vetName && currentStatus !== 'pending' && (
           <div className="relative overflow-hidden rounded-2xl p-5 flex items-center gap-4"
-            style={{ background:'linear-gradient(135deg,rgba(74,222,128,0.09),rgba(45,212,191,0.04))', border:'1px solid rgba(74,222,128,0.22)', boxShadow:'0 18px 50px rgba(0,0,0,0.18)' }}>
+            style={{ background:'linear-gradient(135deg,rgba(124,184,66,0.09),rgba(45,212,191,0.04))', border:'1px solid rgba(124,184,66,0.22)', boxShadow:'0 18px 50px rgba(0,0,0,0.18)' }}>
             <div className="absolute right-0 top-0 rounded-bl-2xl bg-green-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-green-400">
               Ветеринар найден
             </div>
@@ -622,7 +613,7 @@ export default function OrderTrackingPage() {
               />
             ) : (
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-green-400 flex-shrink-0"
-                style={{ background:'rgba(74,222,128,0.1)', border:'1px solid rgba(74,222,128,0.2)' }}>
+                style={{ background:'rgba(124,184,66,0.1)', border:'1px solid rgba(124,184,66,0.2)' }}>
                 {vetName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -645,6 +636,40 @@ export default function OrderTrackingPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Рассказ клиента и оценка ИИ — врач видит до приезда */}
+        {(order.notes || order.ai_triage || order.voice_url) && (
+          <div className="rounded-2xl p-5 mb-4 border border-green-400/25 bg-green-500/[0.06]">
+            <div className="text-xs font-bold uppercase tracking-wider text-green-300 mb-2">📋 Передано врачу до приезда</div>
+            {order.notes && <p className="text-sm text-white/85 mb-3">«{order.notes}»</p>}
+            {order.voice_url && (
+              <div className="mb-3 rounded-xl bg-green-600 px-4 py-3 max-w-sm">
+                <VoiceBubble url={order.voice_url} duration={12} transcript={order.notes} mine />
+              </div>
+            )}
+            {order.ai_triage && (
+              <div className="text-sm space-y-2">
+                <p className="text-white/70"><b className="text-white">Оценка ИИ:</b> {order.ai_triage.summary}</p>
+                {order.ai_triage.do_now?.length > 0 && (
+                  <ul className="space-y-1">{order.ai_triage.do_now.map((d) => <li key={d} className="text-white/70 flex gap-2"><span className="text-green-400">✓</span>{d}</li>)}</ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Связь с врачом после визита */}
+        {order.vet_name && ['completed', 'arrived', 'in_progress'].includes(order.status) && (
+          <Link to={`/chat/${order.id}`}
+            className="flex items-center gap-4 rounded-2xl p-4 bg-green-600 hover:bg-green-500 transition-colors">
+            <span className="text-2xl">💬</span>
+            <div className="flex-1">
+              <div className="font-black text-white">Написать ветеринару</div>
+              <div className="text-xs text-white/80">{order.vet_name} ответит на вопросы о лечении и уходе</div>
+            </div>
+            <span className="text-white text-xl">→</span>
+          </Link>
         )}
 
         {/* Order details */}
