@@ -19,6 +19,8 @@ import chatRoutes, { initChat, MEDIA_DIR } from './routes/chat';
 import voiceRoutes from './routes/voice';
 import vetCabinetRoutes, { initVetCabinet, startOrderStream } from './routes/vetCabinet';
 import { seedVetCabinet } from './vetDemo';
+import crmRoutes from './routes/crm';
+import { seedCrm } from './crmDemo';
 
 dotenv.config();
 
@@ -54,6 +56,7 @@ app.use('/api/shop', shopRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/vet', vetCabinetRoutes);   // кабинет ветеринара
+app.use('/api/crm', crmRoutes);          // CRM для руководителя
 app.use('/api/media', express.static(MEDIA_DIR, { maxAge: '7d' }));
 
 app.get('/api/health', (_req, res) => {
@@ -79,6 +82,7 @@ async function start() {
   await seedChats();
   await initVetCabinet();
   await seedVetCabinet();
+  await seedCrm();
   startOrderStream();
   app.listen(PORT, () => {
     console.log(`🚀 ВетДом API запущен на порту ${PORT}`);
