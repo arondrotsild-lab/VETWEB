@@ -17,6 +17,8 @@ import charityRoutes, { initCharity } from './routes/charity';
 import shopRoutes, { initShop } from './routes/shop';
 import chatRoutes, { initChat, MEDIA_DIR } from './routes/chat';
 import voiceRoutes from './routes/voice';
+import vetCabinetRoutes, { initVetCabinet } from './routes/vetCabinet';
+import { seedVetCabinet } from './vetDemo';
 
 dotenv.config();
 
@@ -51,6 +53,7 @@ app.use('/api/charity', charityRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/vet', vetCabinetRoutes);   // кабинет ветеринара
 app.use('/api/media', express.static(MEDIA_DIR, { maxAge: '7d' }));
 
 app.get('/api/health', (_req, res) => {
@@ -74,6 +77,8 @@ async function start() {
   await seedPassportPet();
   await seedReferralFriends();
   await seedChats();
+  await initVetCabinet();
+  await seedVetCabinet();
   app.listen(PORT, () => {
     console.log(`🚀 ВетДом API запущен на порту ${PORT}`);
   });

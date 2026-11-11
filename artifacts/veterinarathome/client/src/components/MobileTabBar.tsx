@@ -21,12 +21,12 @@ export default function MobileTabBar() {
   const active = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#1F150E]/95 backdrop-blur-xl border-t border-white/10"
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#24150E]/95 backdrop-blur-xl border-t border-[#C2410C]/20"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="grid grid-cols-5 h-16">
         {tabs.map((t) => t.center ? (
           <Link key={t.label} to={t.to} className="flex flex-col items-center justify-start -mt-5">
-            <span className="w-14 h-14 rounded-full bg-green-500 active:bg-green-600 text-white flex items-center justify-center shadow-lg shadow-green-900/50 border-4 border-[#1F150E]">
+            <span className="w-14 h-14 rounded-full bg-green-500 active:bg-green-600 text-white flex items-center justify-center shadow-lg shadow-green-900/50 border-4 border-[#24150E]">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
             </span>
             <span className="text-[10px] font-bold text-green-400 mt-0.5">{t.label}</span>

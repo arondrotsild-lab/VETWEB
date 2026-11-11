@@ -429,14 +429,22 @@ export default function OrderTrackingPage() {
     finally { setLoading(false); }
   }, [id]);
 
+  // Есть ли сейчас врачи на линии в кабинете ветеринара. Если есть — показываем настоящий ход заказа
+  // (врач принимает и едет), если нет — демонстрационную анимацию, как раньше.
+  const [liveVets, setLiveVets] = useState<number | null>(null);
   useEffect(() => {
-    fetchOrder();
-    const iv = setInterval(fetchOrder, 10000);
-    return () => clearInterval(iv);
-  }, [fetchOrder]);
+    fetch('/api/vets/online').then((r) => r.json()).then((d) => setLiveVets(Number(d.online) || 0)).catch(() => setLiveVets(0));
+  }, []);
 
   useEffect(() => {
-    if (!order || (replay === 0 && (order.status !== 'pending' || order.vet_name))) {
+    fetchOrder();
+    const iv = setInterval(fetchOrder, liveVets ? 4000 : 10000);
+    return () => clearInterval(iv);
+  }, [fetchOrder, liveVets]);
+
+  useEffect(() => {
+    if (liveVets === null && replay === 0) return;
+    if (!order || (replay === 0 && (order.status !== 'pending' || order.vet_name || liveVets))) {
       setDemoStatus(null);
       return;
     }
@@ -449,7 +457,7 @@ export default function OrderTrackingPage() {
       timers.push(window.setTimeout(() => setDemoStatus(statuses[i + 1]), at));
     });
     return () => timers.forEach((tm) => window.clearTimeout(tm));
-  }, [order?.id, order?.status, order?.vet_name, replay]);
+  }, [order?.id, order?.status, order?.vet_name, replay, liveVets]);
 
   const currentStatus = demoStatus ?? order?.status ?? '';
   const etaSec   = useETA(currentStatus, order?.id ?? 0);

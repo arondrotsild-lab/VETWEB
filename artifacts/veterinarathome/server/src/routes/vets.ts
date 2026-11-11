@@ -15,6 +15,12 @@ router.get('/', async (_req: Request, res: Response) => {
   res.json(result.rows);
 });
 
+// GET /api/vets/online — сколько врачей сейчас на линии (для экрана заказа у клиента)
+router.get('/online', async (_req: Request, res: Response) => {
+  const r = await pool.query('SELECT COUNT(*)::int AS n FROM vets WHERE is_available = true AND online_since IS NOT NULL');
+  res.json({ online: r.rows[0].n });
+});
+
 // GET /api/vets/profile — get own vet profile
 router.get('/profile', authMiddleware, async (req: AuthRequest, res: Response) => {
   const result = await pool.query(

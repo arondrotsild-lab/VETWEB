@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getPets, getOrders, getLoyalty } from '../api';
+import { getPets, getOrders, getLoyalty, login as apiLogin } from '../api';
 
 // Главный экран мобильного приложения: всё на одном экране, каждая плитка ведёт в свой раздел
 interface Pet { id: number; name: string; photo_url?: string }
@@ -25,8 +25,18 @@ const TILES = [
 ];
 
 export default function MobileHome() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
+  const [entering, setEntering] = useState(false);
+
+  // Быстрый вход в аккаунт Александра прямо с главного экрана
+  const quickLogin = async () => {
+    setEntering(true);
+    try {
+      const d = await apiLogin({ phone: '+79990000000', password: 'demo1234' });
+      login(d.token, d.user);
+    } catch { /* ignore */ } finally { setEntering(false); }
+  };
   const [active, setActive] = useState<Order | null>(null);
   const [bonus, setBonus] = useState<number | null>(null);
 
@@ -41,14 +51,45 @@ export default function MobileHome() {
   const hello = hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-[#1F150E] text-white px-4 pt-[calc(4.5rem+env(safe-area-inset-top))] pb-4 flex flex-col gap-3">
+    <div className="min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] bg-gradient-to-b from-[#5A2F1E] via-[#3B2117] to-[#24150E] text-white px-4 pt-[calc(4.5rem+env(safe-area-inset-top))] pb-4 flex flex-col gap-3">
       {/* Приветствие */}
       <div>
         <div className="text-[22px] font-black leading-tight">
           {user ? `${hello}, ${user.name.split(' ')[0]} 👋` : 'Ветеринар на дом 🐾'}
         </div>
-        <div className="text-xs text-white/55 mt-0.5">📍 Москва, Кутузовский проспект, 8</div>
+        <div className="text-xs text-white/60 mt-0.5">📍 Москва, Кутузовский проспект, 8</div>
       </div>
+
+      {/* Личный кабинет */}
+      {user ? (
+        <Link to="/profile" className="flex items-center gap-3 rounded-2xl bg-white/[0.08] border border-white/10 px-3 py-2.5 active:scale-[0.98] transition-transform">
+          {user.avatar_url
+            ? <img src={user.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover ring-2 ring-green-500" />
+            : <span className="w-11 h-11 rounded-full bg-green-500 flex items-center justify-center font-black">{user.name[0]}</span>}
+          <div className="flex-1 min-w-0">
+            <div className="font-bold leading-tight truncate">{user.name}</div>
+            <div className="text-[11px] text-white/60">Личный кабинет · 🐾 статус «Друг»</div>
+          </div>
+          <span className="text-xs font-bold text-green-300">Кабинет ›</span>
+        </Link>
+      ) : (
+        <div className="rounded-2xl bg-white/[0.08] border border-white/10 p-3">
+          <div className="flex items-center gap-3">
+            <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-xl">👤</span>
+            <div className="flex-1">
+              <div className="font-bold leading-tight">Личный кабинет</div>
+              <div className="text-[11px] text-white/60">Питомцы, бонусы, заказы и чат с врачом</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <button onClick={quickLogin} disabled={entering}
+              className="rounded-xl bg-[#FACC15] text-[#1E140D] font-black text-sm py-2.5 active:scale-95 transition-transform">
+              {entering ? 'Входим…' : 'Быстрый вход'}
+            </button>
+            <Link to="/register" className="rounded-xl border border-white/25 text-center font-bold text-sm py-2.5 active:scale-95 transition-transform">Регистрация</Link>
+          </div>
+        </div>
+      )}
 
       {/* Текущий заказ */}
       {active && (
@@ -85,13 +126,13 @@ export default function MobileHome() {
         ))}
       </div>
 
-      {/* Питомцы */}
-      <div className="rounded-2xl bg-white/[0.05] border border-white/10 p-3">
+      {/* Питомцы (после входа) */}
+      {user && (
+      <div className="rounded-2xl bg-white/[0.06] border border-white/10 p-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-bold">Мои питомцы</span>
-          <Link to={user ? '/profile' : '/login'} className="text-xs text-green-400 font-semibold">Все ›</Link>
+          <Link to="/profile" className="text-xs text-green-400 font-semibold">Все ›</Link>
         </div>
-        {user ? (
           <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {pets.map((p) => (
               <Link key={p.id} to="/profile" className="flex flex-col items-center gap-1 flex-shrink-0 active:scale-95 transition-transform">
@@ -106,22 +147,32 @@ export default function MobileHome() {
               <span className="text-[11px] text-white/50">Добавить</span>
             </Link>
           </div>
-        ) : (
-          <Link to="/login" className="block text-center rounded-xl bg-green-500 py-2.5 text-sm font-bold">Войти и добавить питомца</Link>
-        )}
       </div>
-
-      {/* Бонусы */}
-      {user && bonus !== null && (
-        <Link to="/profile" className="flex items-center gap-3 rounded-2xl bg-[#FACC15] text-[#1E140D] px-4 py-3 active:scale-[0.98] transition-transform">
-          <span className="text-2xl">🎁</span>
-          <div className="flex-1">
-            <div className="font-black leading-tight">{bonus.toLocaleString('ru-RU')} бонусов</div>
-            <div className="text-[11px] opacity-75">Оплачивайте до 30% визита · пригласите друга +500</div>
-          </div>
-          <span className="font-black">›</span>
-        </Link>
       )}
+
+      {/* Бонусы: баланс после входа, подарок новичку — до входа */}
+      <Link to={user ? '/profile' : '/register'} className="flex items-center gap-3 rounded-2xl bg-[#FACC15] text-[#1E140D] px-4 py-3 active:scale-[0.98] transition-transform">
+        <span className="text-2xl">🎁</span>
+        <div className="flex-1">
+          <div className="font-black leading-tight">
+            {user ? `${(bonus ?? 0).toLocaleString('ru-RU')} бонусов` : '500 бонусов в подарок'}
+          </div>
+          <div className="text-[11px] opacity-75">
+            {user ? 'Оплачивайте до 30% визита · пригласите друга +500' : 'За регистрацию · 1 бонус = 1 ₽'}
+          </div>
+        </div>
+        <span className="font-black">›</span>
+      </Link>
+
+      {/* Почему ВетДом — прижато к низу, без пустого места */}
+      <div className="mt-auto grid grid-cols-3 gap-2 pt-1">
+        {[['15–60 мин', 'врач у двери'], ['4.9 ★', 'средняя оценка'], ['24/7', 'без выходных']].map(([v, l]) => (
+          <div key={v} className="rounded-xl bg-black/20 border border-white/10 py-2 text-center">
+            <div className="font-black text-sm">{v}</div>
+            <div className="text-[10px] text-white/55">{l}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
