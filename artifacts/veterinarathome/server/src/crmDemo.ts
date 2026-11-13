@@ -438,3 +438,99 @@ async function buildFinance(now: number) {
     SELECT * FROM unnest($1::timestamp[], $2::int[], $3::text[], $4::bigint[], $5::text[], $6::text[], $7::text[])`,
     [T.map((x) => x[0]), T.map((x) => x[1]), T.map((x) => x[2]), T.map((x) => x[3]), T.map((x) => x[4]), T.map((x) => x[5]), T.map((x) => x[6])]);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  Живое пополнение: компания продолжает работать каждый день.
+//  Раз в час дописываем визиты врачей (кроме демо-врача Анны), новых клиентов
+//  с питомцами и покупки в магазине — в темпе последних недель с ростом ~1,5% в месяц.
+//  Раз в день пересчитываем финансы компании.
+// ═══════════════════════════════════════════════════════════════════
+const TOP = rng(Date.now() % 100000);
+const tpick = <T,>(a: T[]) => a[Math.floor(TOP() * a.length)];
+const poisson = (l: number) => { let k = 0, p = 1; const L = Math.exp(-l); do { k++; p *= TOP(); } while (p > L); return k - 1; };
+
+export async function topUpCrm() {
+  try {
+    if ((await meta('crm_demo')) !== '1') return;
+    const now = Date.now();
+    const fromTs = Number((await meta('crm_filled_ts')) || new Date('2026-11-12T00:00:00').getTime());
+    if (now - fromTs < 20 * 60_000) return;
+    // темп каждого врача за последние 4 недели до начала пополнения
+    const rates = (await pool.query(`
+      SELECT o.vet_id, COUNT(*)::float / 28 per_day FROM orders o JOIN vets v ON v.id = o.vet_id JOIN users u ON u.id = v.user_id
+      WHERE o.status = 'completed' AND u.phone <> '+79990000101'
+        AND o.scheduled_at >= to_timestamp($1 / 1000.0) - INTERVAL '28 days' AND o.scheduled_at < to_timestamp($1 / 1000.0)
+      GROUP BY o.vet_id`, [fromTs])).rows as { vet_id: number; per_day: number }[];
+    const svc = (await pool.query(`SELECT id, name, price_from, price_to, duration_minutes FROM services`)).rows;
+    const svcBy = Object.fromEntries(svc.map((s) => [s.name, s]));
+    const totalW = SERVICES_W.reduce((a, [, w]) => a + w, 0);
+    const pickSvc = () => { let x = TOP() * totalW; for (const [n, w] of SERVICES_W) { x -= w; if (x <= 0) return svcBy[n]; } return svcBy['Первичный осмотр']; };
+    const regulars = (await pool.query(`SELECT client_id, pet_id FROM orders WHERE status = 'completed' AND client_id IN (SELECT id FROM users WHERE phone LIKE '+7999002%') ORDER BY random() LIMIT 3000`)).rows as { client_id: number; pet_id: number }[];
+    const [{ shop_per_day }] = (await pool.query(`SELECT COUNT(*)::float / 14 shop_per_day FROM shop_orders WHERE created_at >= to_timestamp($1 / 1000.0) - INTERVAL '14 days' AND created_at < to_timestamp($1 / 1000.0)`, [fromTs])).rows;
+    const clientHash = await bcrypt.hash('clientdemo1234', 4);
+    const [{ maxp }] = (await pool.query(`SELECT COALESCE(MAX(substr(phone, 9)::int), 0) maxp FROM users WHERE phone LIKE '+7999002%'`)).rows;
+    let nextPhone = Number(maxp) + 1;
+    let added = 0, shopAdded = 0, newClients = 0;
+    const H = 3600_000;
+    for (let t = Math.ceil(fromTs / H) * H; t + H <= now + H; t += H) {
+      const hEnd = Math.min(t + H, now - 15 * 60_000);
+      if (hEnd <= t) break;
+      const d = new Date(t); const hour = d.getHours(); const wd = d.getDay();
+      if (hour < 8 || hour > 21) continue;
+      const wk = wd === 0 ? 0.45 : wd === 6 ? 0.7 : 1.08;
+      const grow = 1 + 0.015 * ((t - fromTs) / (30 * 86400_000)) + 0.03;
+      const frac = (hEnd - t) / H;
+      for (const r of rates) {
+        const n = poisson(r.per_day / 14 * wk * grow * frac);
+        for (let k = 0; k < n; k++) {
+          const at = t + TOP() * (hEnd - t);
+          let client: number, pet: number;
+          if (TOP() < 0.3) {   // новый клиент с питомцем
+            const fem = TOP() < 0.62;
+            const name = `${tpick(fem ? FIRST_F : FIRST_M)} ${tpick(LAST)[fem ? 1 : 0]}`;
+            const phone = `+7999002${String(nextPhone++).padStart(4, '0')}`;
+            const u = await pool.query(`INSERT INTO users (name, phone, password_hash, role, created_at, referral_code) VALUES ($1, $2::varchar, $3, 'client', $4, upper(substr(md5($2::varchar || 'vetdom-crm'), 1, 10))) RETURNING id`,
+              [name, phone, clientHash, new Date(at - (1 + TOP() * 20) * 60_000).toISOString()]);
+            client = u.rows[0].id;
+            const dog = TOP() < 0.52;
+            const p = await pool.query(`INSERT INTO pets (owner_id, name, species, breed, age_years, weight_kg, sex, current_concern, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+              [client, dog ? tpick(DOG_NAMES) : tpick(CAT_NAMES), dog ? 'Собака' : 'Кошка', dog ? tpick(DOGS) : tpick(CATS), 1 + Math.floor(TOP() * 12),
+                Math.round((dog ? 5 + TOP() * 30 : 3 + TOP() * 3) * 10) / 10, TOP() < 0.5 ? 'м' : 'ж', tpick(CONCERNS), new Date(at).toISOString()]);
+            pet = p.rows[0].id; newClients++;
+          } else { const x = tpick(regulars); client = x.client_id; pet = x.pet_id; }
+          const s = pickSvc();
+          const price = Math.round((s.price_from + TOP() * 0.25 * (s.price_to - s.price_from)) / 100) * 100;
+          const pct = 60 + (TOP() < 0.3 ? 5 : 0);
+          const rated = TOP() < 0.8;
+          await pool.query(`INSERT INTO orders (client_id, vet_id, pet_id, service_id, address, scheduled_at, status, total_price, created_at, updated_at, accepted_at, completed_at, vet_percent, vet_payout, client_rating, client_review, notes)
+            VALUES ($1,$2,$3,$4,$5,$6,'completed',$7,$8,$9,$10,$9,$11,$12,$13,$14,$15)`,
+            [client, r.vet_id, pet, s.id, `Москва, ${tpick(STREETS)}, ${1 + Math.floor(TOP() * 120)}, кв. ${1 + Math.floor(TOP() * 300)}`, new Date(at).toISOString(), price,
+              new Date(at - (0.5 + TOP() * 2) * H).toISOString(), new Date(at + s.duration_minutes * 60_000).toISOString(), new Date(at - (0.4 + TOP()) * H).toISOString(),
+              pct, Math.round(price * pct / 100), rated ? (TOP() < 0.9 ? 5 : 4) : null, rated && TOP() < 0.35 ? tpick(REVIEWS) : null, tpick(CONCERNS)]);
+          added++;
+        }
+      }
+      // магазин
+      const ns = poisson(Number(shop_per_day) / 14 * grow * frac);
+      for (let k = 0; k < ns; k++) {
+        const p = tpick(PRODUCTS); const q = TOP() < 0.7 ? 1 : 2; const total = p.price * q;
+        const bonus = TOP() < 0.18 ? Math.min(Math.round(total * 0.3 / 10) * 10, 1500) : 0;
+        await pool.query(`INSERT INTO shop_orders (user_id, product_id, qty, total_rub, bonus_used, created_at) VALUES ($1,$2,$3,$4,$5,$6)`,
+          [tpick(regulars).client_id, p.id, q, total - bonus, bonus, new Date(t + TOP() * (hEnd - t)).toISOString()]);
+        shopAdded++;
+      }
+    }
+    await setMeta('crm_filled_ts', String(now - 15 * 60_000));
+    // финансы — раз в день
+    const today = new Date().toDateString();
+    if ((await meta('crm_fin_day')) !== today) { await buildFinance(now); await setMeta('crm_fin_day', today); }
+    if (added || shopAdded) console.log(`✅ CRM пополнена: +${added} визитов, +${newClients} новых клиентов, +${shopAdded} покупок`);
+  } catch (err) {
+    console.error('Ошибка пополнения CRM:', err);
+  }
+}
+
+export function startCrmTopUp() {
+  topUpCrm();
+  setInterval(topUpCrm, 60 * 60_000);
+}

@@ -20,7 +20,7 @@ import voiceRoutes from './routes/voice';
 import vetCabinetRoutes, { initVetCabinet, startOrderStream } from './routes/vetCabinet';
 import { seedVetCabinet } from './vetDemo';
 import crmRoutes from './routes/crm';
-import { seedCrm } from './crmDemo';
+import { seedCrm, startCrmTopUp } from './crmDemo';
 
 dotenv.config();
 
@@ -83,6 +83,7 @@ async function start() {
   await initVetCabinet();
   await seedVetCabinet();
   await seedCrm();
+  startCrmTopUp();
   startOrderStream();
   app.listen(PORT, () => {
     console.log(`🚀 ВетДом API запущен на порту ${PORT}`);

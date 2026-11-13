@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Icon3D from './Icon3D';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getPets, getOrders, getLoyalty, login as apiLogin } from '../api';
@@ -14,17 +15,18 @@ const STATUS: Record<string, string> = {
 };
 
 const TILES = [
-  { to: '/services', label: 'Услуги', icon: '🩺', bg: 'bg-green-500/15', ring: 'ring-green-400/30' },
-  { to: '/medcard', label: 'Ветпаспорт', icon: '📘', bg: 'bg-[#FACC15]/15', ring: 'ring-[#FACC15]/30' },
-  { to: '/shop', label: 'Магазин', icon: '🛍', bg: 'bg-amber-400/15', ring: 'ring-amber-300/30' },
-  { to: '/chats', label: 'Чат с врачом', icon: '💬', bg: 'bg-sky-400/15', ring: 'ring-sky-300/30', auth: true },
-  { to: '/profile', label: 'Бонусы', icon: '🎁', bg: 'bg-purple-400/15', ring: 'ring-purple-300/30', auth: true },
-  { to: '/charity', label: 'Помочь', icon: '❤️', bg: 'bg-red-400/15', ring: 'ring-red-300/30' },
-  { to: '/history', label: 'Мои заказы', icon: '📋', bg: 'bg-white/10', ring: 'ring-white/15', auth: true },
-  { to: '/order', label: 'Скорая 24/7', icon: '🚑', bg: 'bg-red-500/20', ring: 'ring-red-400/40' },
+  { to: '/services', label: 'Услуги', icon: '🩺', tone: 'green', bg: '', ring: '' },
+  { to: '/medcard', label: 'Ветпаспорт', icon: '📘', tone: 'yellow', bg: '', ring: '' },
+  { to: '/shop', label: 'Магазин', icon: '🛍', tone: 'amber', bg: '', ring: '' },
+  { to: '/chats', label: 'Чат с врачом', icon: '💬', tone: 'sky', bg: '', ring: '', auth: true },
+  { to: '/profile', label: 'Бонусы', icon: '🎁', tone: 'purple', bg: '', ring: '', auth: true },
+  { to: '/charity', label: 'Помочь', icon: '❤️', tone: 'pink', bg: '', ring: '' },
+  { to: '/history', label: 'Мои заказы', icon: '📋', tone: 'cream', bg: '', ring: '', auth: true },
+  { to: '/order', label: 'Скорая 24/7', icon: '🚑', tone: 'red', bg: '', ring: '', urgent: true },
 ];
 
 export default function MobileHome() {
+  const short = window.innerHeight < 700;   // невысокий экран — иконки чуть меньше
   const { user, login } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
   const [entering, setEntering] = useState(false);
@@ -119,8 +121,8 @@ export default function MobileHome() {
       <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
         {TILES.map((t) => (
           <Link key={t.label} to={t.auth && !user ? '/login' : t.to}
-            className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <span className={`w-[60px] h-[60px] [@media(max-height:700px)]:w-[52px] [@media(max-height:700px)]:h-[52px] rounded-2xl ${t.bg} ring-1 ${t.ring} flex items-center justify-center text-[26px] [@media(max-height:700px)]:text-[23px]`}>{t.icon}</span>
+            className="flex flex-col items-center gap-2 pt-1">
+            <Icon3D emoji={t.icon} tone={t.tone} size={short ? 50 : 58} pulse={t.urgent} dot={t.urgent} />
             <span className="text-[11px] font-semibold text-white/85 text-center leading-tight">{t.label}</span>
           </Link>
         ))}
